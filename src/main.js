@@ -57,14 +57,26 @@ function showParamForm() {
 async function startExperiment() {
   console.log('jsPsych Blur Experiment starting...')
 
+  const target = document.getElementById('jspsych-target')
+  const params = readFormParams()
+
+  // Force upload_code — required to persist formal schedule on server
+  if (!params.upload_code) {
+    target.innerHTML = `<div class="instruction-text" style="color:#f44336;">
+      <h2>缺少上传授权码</h2>
+      <p>正式实验需要上传授权码，用于在服务器保存个体化正式实验排程。</p>
+      <p>请返回参数页填写上传授权码后重新开始。</p>
+      <button onclick="location.reload()" style="font-size:18px;padding:8px 30px;margin-top:16px;cursor:pointer;">返回参数页</button>
+    </div>`
+    return
+  }
+
   const fullscreenWasRequested = await requestFullscreen()
 
   let downloadTriggered = false
   let runPhase = 'initial'
   let abortTriggered = false
   let abortInfo = null
-  const target = document.getElementById('jspsych-target')
-  const params = readFormParams()
   target.innerHTML = ''
   let formalBlocks = {}
   let blockDistributionRows = []
@@ -299,7 +311,13 @@ async function startExperiment() {
           if (!isTestSubject) {
             const existingCal = await fetchStoredCalibration(params.participant, params.upload_code)
             if (hasV2FormalSchedule(existingCal)) {
-              console.log('Calibration already exists for', params.participant, '— skipping upload to protect existing data')
+              target.innerHTML = `<div class="instruction-text" style="color:#f44336;">
+                <h2>该被试编号已有正式排程</h2>
+                <p>为避免覆盖或混用正式实验顺序，本次实验已停止。</p>
+                <p>请确认被试编号是否填写错误，或联系实验负责人处理。</p>
+                <button onclick="location.reload()" style="font-size:18px;padding:8px 30px;margin-top:16px;cursor:pointer;">重新选择</button>
+              </div>`
+              return
             } else {
               const ok = await uploadCalibration(params.participant, buildArtifact(), params.upload_code)
               if (!ok) {
