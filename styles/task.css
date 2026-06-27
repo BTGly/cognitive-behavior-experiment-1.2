@@ -1,0 +1,74 @@
+body {
+  margin: 0;
+  padding: 0;
+  background: #111;
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+#jspsych-target {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.jspsych-display-element {
+  text-align: center;
+}
+.fixation {
+  font-size: 48px;
+  color: #fff;
+}
+.stimulus-image {
+  max-width: 80vw;
+  max-height: 80vh;
+  display: block;
+  margin: 0 auto;
+}
+.instruction-text {
+  font-size: 24px;
+  line-height: 1.6;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.response-hint {
+  font-size: 20px;
+  color: #aaa;
+  margin-top: 20px;
+}
+.feedback-correct {
+  color: #4caf50;
+  font-size: 28px;
+}
+.feedback-incorrect {
+  color: #f44336;
+  font-size: 28px;
+}
+.feedback-timeout {
+  color: #ff9800;
+  font-size: 28px;
+}
+.block-feedback {
+  font-size: 22px;
+  line-height: 1.8;
+}
+.param-form label {
+  display: block;
+  font-size: 20px;
+  margin: 12px 0;
+}
+.param-form input {
+  font-size: 18px;
+  padding: 6px 10px;
+  margin-left: 10px;
+  width: 120px;
+}
+.param-form button {
+  font-size: 22px;
+  padding: 10px 40px;
+  margin-top: 20px;
+  cursor: pointer;
+}

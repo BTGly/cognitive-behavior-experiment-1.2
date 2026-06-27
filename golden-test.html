@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Golden Test — 校准算法验证</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #ddd; padding: 20px; }
+    h1, h2, h3 { color: #fff; }
+    pre { background: #222; padding: 10px; border-radius: 4px; }
+    .pass { color: #4caf50; }
+    .fail { color: #f44336; }
+    table { border-collapse: collapse; margin: 10px 0; }
+    th, td { border: 1px solid #444; padding: 6px 12px; text-align: right; }
+    th { background: #333; }
+  </style>
+</head>
+<body>
+  <h1>Golden Test — 校准算法验证</h1>
+  <p>使用 S001 预实验数据，验证算法逻辑正确性</p>
+  <div id="output"></div>
+
+  <script src="https://unpkg.com/jspsych@8.0.8"></script>
+  <script type="module">
+    import { logisticP8, fitLogisticGrid, invLogisticAlpha } from './src/calibration/logistic.js'
+    import { buildMonotonicP8Curve, betaSmoothP8 } from './src/calibration/monotonic.js'
+    import { selectAlphas, FORMAL_PLAN, P8_WINDOWS } from './src/calibration/select-alpha.js'
+    import { computePretestAlphaSummary, computeExpectedMetrics } from './src/data/summaries.js'
+
+    const out = document.getElementById('output')
+    let allPass = true
+
+    function log(msg, cls = '') {
+      out.innerHTML += `<div class="${cls}">${msg}</div>`
+    }
+
+    function check(cond, desc) {
+      const ok = !!cond
+      if (!ok) allPass = false
+      log(`${ok ? '✅' : '❌'} ${desc}`, ok ? 'pass' : 'fail')
+      return ok
+    }
+
+    // ===== S001 pretest_alpha_summary =====
+    const PRETEST_DATA = [
+      [0.00, 10, 1, 0.1], [0.10, 10, 1, 0.1], [0.20, 10, 0, 0.0],
+      [0.30, 10, 1, 0.1], [0.34, 10, 1, 0.1], [0.38, 10, 0, 0.0],
+      [0.42, 10, 0, 0.0], [0.46, 10, 6, 0.6], [0.48, 10, 4, 0.4],
+      [0.52, 10, 3, 0.3], [0.54, 10, 7, 0.7], [0.56, 10, 5, 0.5],
+      [0.58, 10, 4, 0.4], [0.64, 10, 7, 0.7], [0.70, 10, 7, 0.7],
+      [0.80, 10, 10, 1.0], [0.90, 10, 9, 0.9], [1.00, 10, 9, 0.9]
+    ]
+    const alphaCounts = {}
+    for (const [a, n, k] of PRETEST_DATA) alphaCounts[a] = { n, k }
+
+    // ===== Mock alphaToImages =====
+    const mockAlphas = [0.0, 0.10, 0.20, 0.30, 0.32, 0.34, 0.36, 0.38, 0.40, 0.42, 0.44, 0.46, 0.48, 0.52, 0.54, 0.56, 0.58, 0.60, 0.62, 0.64, 0.66, 0.68, 0.70, 0.80, 0.90, 1.00]
+    const mockAlphaToImages = {}
+    for (const a of mockAlphas) {
+      mockAlphaToImages[a] = Array.from({length: 200}, (_, i) => ({
+        rank: i + 1,
+        image_path: `stimuli_master_pool/alpha_${a.toFixed(2)}/a${a.toFixed(2)}_rank${String(i+1).padStart(3,'0')}.png`
+      }))
+    }
+
+    log('<h2>1. Logistic 函数</h2>')
+    check(logisticP8(0, 0.5, 0.1) > 0 && logisticP8(0, 0.5, 0.1) < 0.01, 'alpha=0, mu=0.5, sigma=0.1 → p8 near 0')
+    check(logisticP8(1, 0.5, 0.1) > 0.99, 'alpha=1, mu=0.5, sigma=0.1 → p8 near 1')
+    check(Math.abs(logisticP8(0.5, 0.5, 0.1) - 0.5) < 0.001, 'alpha=mu → p8=0.5')
+    check(logisticP8(0.5, 0.5, 0) > 0.4, 'sigma clamped to 0.005')
+
+    log('<h2>2. Logistic 拟合</h2>')
+    const { mu, sigma, nll } = fitLogisticGrid(alphaCounts)
+    log(`mu=${mu.toFixed(4)}, sigma=${sigma.toFixed(4)}, nll=${nll.toFixed(4)}`)
+    check(mu > 0.3 && mu < 0.8, `mu 在合理范围内: ${mu.toFixed(4)}`)
+    check(sigma > 0.01 && sigma < 0.5, `sigma 在合理范围内: ${sigma.toFixed(4)}`)
+    check(nll > 0 && nll < 200, `nll 在合理范围内: ${nll.toFixed(4)}`)
+
+    log('<h2>3. 逆 Logistic</h2>')
+    const invAlpha = invLogisticAlpha(0.5, 0.5, 0.1)
+    check(Math.abs(invAlpha - 0.5) < 0.001, `invLogisticAlpha(0.5, 0.5, 0.1) = ${invAlpha.toFixed(4)}`)
+
+    log('<h2>4. 单调校准 PAVA</h2>')
+    const { obsMap, betaMap, monoMap, monoPredict } = buildMonotonicP8Curve(alphaCounts)
+    check(betaSmoothP8(1, 10) === (1+1)/(10+2), 'betaSmoothP8(1,10)')
+    check(betaSmoothP8(10, 10) === (10+1)/(10+2), 'betaSmoothP8(10,10)')
+    const p44 = monoPredict(0.44), p58 = monoPredict(0.58), p80 = monoPredict(0.80)
+    check(p44 >= 0 && p44 <= 1, `monoPredict(0.44)=${p44.toFixed(4)}`)
+    check(p58 >= 0 && p58 <= 1, `monoPredict(0.58)=${p58.toFixed(4)}`)
+    check(p80 >= 0 && p80 <= 1, `monoPredict(0.80)=${p80.toFixed(4)}`)
+    check(monoPredict(0.44) <= monoPredict(0.80), '单调性: p44 <= p80')
+
+    log('<h2>5. Alpha 选择</h2>')
+    const { selected, selectedInfo } = selectAlphas(alphaCounts, mockAlphaToImages, mu, sigma, monoPredict)
+    const D_labels = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6']
+    const allAlphas = D_labels.map(d => selected[d])
+    check(new Set(allAlphas).size === 6, `6 个 D 选择了 ${new Set(allAlphas).size} 个不同 alpha: ${allAlphas.map(a=>a.toFixed(2)).join(', ')}`)
+    for (const d of D_labels) {
+      const info = selectedInfo[d]
+      const cfg = FORMAL_PLAN.find(c => c.difficulty_id === d)
+      const [low, high] = P8_WINDOWS[d]
+      check(info.fitted_p8 >= low && info.fitted_p8 <= high, `${d}: fitted_p8 ${info.fitted_p8.toFixed(4)} 在 p8_window [${low},${high}] 内`)
+      if (cfg.label_digit === 3) check(info.selected_alpha < 0.5, `${d}: alpha=${info.selected_alpha.toFixed(2)} < 0.5 (label=3)`)
+      if (cfg.label_digit === 8) check(info.selected_alpha > 0.5, `${d}: alpha=${info.selected_alpha.toFixed(2)} > 0.5 (label=8)`)
+    }
+
+    log('<h2>6. Expected Metrics</h2>')
+    const total = FORMAL_PLAN.reduce((s, c) => s + parseInt(c.n_trials), 0)
+    const metrics = computeExpectedMetrics(selectedInfo, total, FORMAL_PLAN)
+    check(metrics.expectedAccuracy > 0.5, `expected_accuracy=${metrics.expectedAccuracy.toFixed(4)} > 0.5`)
+    check(metrics.expectedAucBinary > 0.5, `expected_auc_binary=${metrics.expectedAucBinary.toFixed(4)} > 0.5`)
+    check(metrics.expectedMcc > -0.5 && metrics.expectedMcc < 1, `expected_mcc=${metrics.expectedMcc.toFixed(4)} 在合理范围`)
+
+    log('<h2>7. FORMAL_PLAN 合法性</h2>')
+    const totalTrials = FORMAL_PLAN.reduce((s, c) => s + parseInt(c.n_trials), 0)
+    check(totalTrials === 1100, `总 trial 数: ${totalTrials}`)
+    for (const cfg of FORMAL_PLAN) {
+      check(cfg.n_trials > 0, `${cfg.difficulty_id}: n_trials=${cfg.n_trials} > 0`)
+      check([3, 8].includes(cfg.label_digit), `${cfg.difficulty_id}: label_digit=${cfg.label_digit}`)
+    }
+
+    log('<hr>')
+    if (allPass) {
+      log('<h2 class="pass">✅ 所有算法验证通过！</h2>')
+    } else {
+      log('<h2 class="fail">❌ 部分验证未通过，请检查</h2>')
+    }
+  </script>
+</body>
+</html>

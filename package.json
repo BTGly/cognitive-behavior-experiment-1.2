@@ -1,0 +1,6 @@
+{
+  "name": "jspsych-blur-experiment",
+  "version": "1.0.0",
+  "description": "Web-based blur discrimination experiment migrated from PsychoPy",
+  "private": true
+}

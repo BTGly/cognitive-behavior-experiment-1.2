@@ -1,0 +1,13 @@
+img_path,group,alpha,label
+blurset3/group000/group000_idx00_alpha00_3.png,group000,0,3
+blurset3/group000/group000_idx01_alpha10_3.png,group000,0.1,3
+blurset3/group000/group000_idx02_alpha20_3.png,group000,0.2,3
+blurset3/group000/group000_idx03_alpha30_3.png,group000,0.3,3
+blurset3/group000/group000_idx04_alpha40_3.png,group000,0.4,3
+blurset3/group000/group000_idx05_alpha45_3.png,group000,0.45,3
+blurset3/group000/group000_idx06_alpha55_8.png,group000,0.55,8
+blurset3/group000/group000_idx07_alpha60_8.png,group000,0.6,8
+blurset3/group000/group000_idx08_alpha70_8.png,group000,0.7,8
+blurset3/group000/group000_idx09_alpha80_8.png,group000,0.8,8
+blurset3/group000/group000_idx10_alpha90_8.png,group000,0.9,8
+blurset3/group000/group000_idx11_alpha100_8.png,group000,1,8

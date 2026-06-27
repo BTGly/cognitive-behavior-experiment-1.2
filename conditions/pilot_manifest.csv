@@ -1,0 +1,4 @@
+group_id,n_trials,csv_path
+0,60,pilot_dataset/csv/group_00.csv
+1,60,pilot_dataset/csv/group_01.csv
+2,60,pilot_dataset/csv/group_02.csv
