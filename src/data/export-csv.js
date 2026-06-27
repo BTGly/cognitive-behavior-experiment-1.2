@@ -62,6 +62,7 @@ export async function buildAllDataZip(subjectId, rawData, summaries, config) {
     subject_id: subjectId,
     start_group: summaries.startGroup || null,
     end_group: summaries.endGroup || null,
+    formal_schedule_hash: summaries.formalScheduleHash || null,
     generated_at: dateStr
   }
   zip.file(`${subjectId}_formal_schedule_source.json`, JSON.stringify(provenance, null, 2))

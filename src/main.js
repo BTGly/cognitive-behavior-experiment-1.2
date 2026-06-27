@@ -22,6 +22,23 @@ import { buildPracticeTimeline } from './timeline/practice.js'
 import { buildPretestTimeline } from './timeline/pretest.js'
 import { buildFormalTimeline } from './timeline/formal.js'
 
+// ---- Calibration v2 helpers ----
+
+function hasV2FormalSchedule(cache) {
+  return !!(
+    cache &&
+    cache.schema_version === 2 &&
+    cache.calibration?.selected &&
+    cache.formal_schedule?.formalBlocks
+  )
+}
+
+function getCalibrationPayload(cache) {
+  return cache?.calibration || null
+}
+
+// ---- Entry ----
+
 showParamForm()
 
 function showParamForm() {
@@ -55,21 +72,24 @@ async function startExperiment() {
   let pretestAlphaSummaryRows = []
   let pretestRecords = []
   let scheduleSource = 'none'
+  let formalScheduleHash = null
 
   // Check if subject already has calibration + formal schedule on server
   let existingCalibration = null
   let scheduleFromServer = null
   if (params.upload_code) {
     target.innerHTML = '<div class="instruction-text">正在检查校准数据...</div>'
-    existingCalibration = await fetchStoredCalibration(params.participant)
-    if (existingCalibration?.formal_schedule?.formalBlocks) {
+    existingCalibration = await fetchStoredCalibration(params.participant, params.upload_code)
+
+    if (hasV2FormalSchedule(existingCalibration)) {
       scheduleFromServer = existingCalibration.formal_schedule
+      formalScheduleHash = existingCalibration.formal_schedule_hash || null
       console.log('Using stored formal schedule for', params.participant)
-    } else if (existingCalibration?.selected && !existingCalibration?.formal_schedule) {
-      // Legacy cache — block and inform
+    } else if (existingCalibration && !hasV2FormalSchedule(existingCalibration)) {
+      // Any non-v2 cache → block
       target.innerHTML = `<div class="instruction-text" style="color:#f44336;">
-        <h2>检测到旧版校准缓存</h2>
-        <p>该被试编号（${escapeHtml(params.participant)}）的校准缓存来自旧版本，缺少正式实验排程。</p>
+        <h2>检测到旧版或不完整校准缓存</h2>
+        <p>该被试编号（${escapeHtml(params.participant)}）的校准缓存版本无效，缺少正式实验排程。</p>
         <p>请联系实验负责人清除旧缓存后重新开始。</p>
         <p style="color:#888;font-size:14px;">（按 Esc 或关闭全屏可退出）</p>
       </div>`
@@ -113,7 +133,11 @@ async function startExperiment() {
       calibrationSummaryRows,
       blockDistributionRows,
       formalBlocks,
-      pretestAlphaSummary: pretestAlphaSummaryRows
+      pretestAlphaSummary: pretestAlphaSummaryRows,
+      scheduleSource,
+      startGroup: params.start_group,
+      endGroup: params.end_group,
+      formalScheduleHash
     }
 
     if (!abortInfo) {
@@ -241,41 +265,37 @@ async function startExperiment() {
         })
         formalBlocks = formalSchedule.formalBlocks
         blockDistributionRows = formalSchedule.blockDistributionRows
+        formalScheduleHash = formalSchedule.formalScheduleHash || null
         scheduleSource = 'newly_generated_after_pretest'
         console.log('Formal schedule generated:', formalBlocks ? Object.keys(formalBlocks).length : 0, 'blocks')
 
         // Upload full artifact (calibration + formal schedule)
         if (params.upload_code) {
           const isTestSubject = /^TEST_/i.test(params.participant)
-          if (!isTestSubject) {
-            const existingCal = await fetchStoredCalibration(params.participant)
-            if (existingCal?.formal_schedule?.formalBlocks) {
-              console.log('Calibration already exists for', params.participant, '— skipping upload to protect existing data')
-            } else {
-              const artifact = {
-                schema_version: 2,
-                subject_id: params.participant,
-                stored_at: new Date().toISOString(),
-                calibration: { mu, sigma, nll, selected, selectedInfo, pretestAlphaSummaryRows },
-                pretest: { pretestUsedPaths: [...pretestUsedPaths] },
-                formal_schedule: formalSchedule,
-                provenance: { app_version: 'web-static', generator: 'buildFormalSchedule', created_at: new Date().toISOString() }
-              }
-              uploadCalibration(params.participant, artifact, params.upload_code)
-                .catch(err => console.warn('Calibration upload failed:', err))
-            }
-          } else {
-            // TEST subject: always upload/overwrite
-            const artifact = {
+
+          function buildArtifact() {
+            return {
               schema_version: 2,
               subject_id: params.participant,
               stored_at: new Date().toISOString(),
               calibration: { mu, sigma, nll, selected, selectedInfo, pretestAlphaSummaryRows },
               pretest: { pretestUsedPaths: [...pretestUsedPaths] },
               formal_schedule: formalSchedule,
+              formal_schedule_hash: formalScheduleHash,
               provenance: { app_version: 'web-static', generator: 'buildFormalSchedule', created_at: new Date().toISOString() }
             }
-            uploadCalibration(params.participant, artifact, params.upload_code)
+          }
+
+          if (!isTestSubject) {
+            const existingCal = await fetchStoredCalibration(params.participant, params.upload_code)
+            if (hasV2FormalSchedule(existingCal)) {
+              console.log('Calibration already exists for', params.participant, '— skipping upload to protect existing data')
+            } else {
+              uploadCalibration(params.participant, buildArtifact(), params.upload_code)
+                .catch(err => console.warn('Calibration upload failed:', err))
+            }
+          } else {
+            uploadCalibration(params.participant, buildArtifact(), params.upload_code)
               .catch(err => console.warn('Calibration upload failed:', err))
           }
         }
@@ -292,19 +312,20 @@ async function startExperiment() {
       }
     } else if (scheduleFromServer) {
       // === RETURNING SUBJECT: read only, never regenerate ===
+      const cal = getCalibrationPayload(existingCalibration)
       formalBlocks = scheduleFromServer.formalBlocks
       blockDistributionRows = scheduleFromServer.blockDistributionRows
       scheduleSource = 'server_calibration_cache'
-      selected = existingCalibration.calibration.selected
-      selectedInfo = existingCalibration.calibration.selectedInfo
-      pretestAlphaSummaryRows = existingCalibration.calibration.pretestAlphaSummaryRows || []
+      selected = cal.selected
+      selectedInfo = cal.selectedInfo
+      pretestAlphaSummaryRows = cal.pretestAlphaSummaryRows || []
       const totalPlannedTrials = FORMAL_PLAN.reduce((s, c) => s + parseInt(c.n_trials), 0)
       const expectedMetrics = computeExpectedMetrics(selectedInfo, totalPlannedTrials, FORMAL_PLAN)
       calibrationSummaryRows = buildCalibrationSummary(
         selectedInfo,
-        existingCalibration.calibration.mu ?? null,
-        existingCalibration.calibration.sigma ?? null,
-        existingCalibration.calibration.nll ?? null,
+        cal.mu ?? null,
+        cal.sigma ?? null,
+        cal.nll ?? null,
         expectedMetrics,
         FORMAL_PLAN
       )
@@ -336,7 +357,8 @@ async function startExperiment() {
       pretestAlphaSummary: pretestAlphaSummaryRows,
       scheduleSource,
       startGroup: params.start_group,
-      endGroup: params.end_group
+      endGroup: params.end_group,
+      formalScheduleHash
     }
 
     finalTimeline.push(endingTimeline(() => {
@@ -391,7 +413,8 @@ function triggerDownload(jsPsych, abortInfo = null) {
       formalBlocks: collector.formalBlocks || {},
       scheduleSource: collector.scheduleSource || 'none',
       startGroup: collector.startGroup || params.start_group,
-      endGroup: collector.endGroup || params.end_group
+      endGroup: collector.endGroup || params.end_group,
+      formalScheduleHash: collector.formalScheduleHash || null
     }
 
     try {
@@ -477,10 +500,11 @@ function escapeHtml(value) {
 
 const CALIBRATION_API_BASE = 'https://exp-api.cognitive-testing.cn'
 
-async function fetchStoredCalibration(subjectId) {
+async function fetchStoredCalibration(subjectId, uploadCode) {
   try {
     const url = `${CALIBRATION_API_BASE}/api/subject/${encodeURIComponent(subjectId)}/calibration`
-    const resp = await fetch(url)
+    const headers = uploadCode ? { 'X-Upload-Token': uploadCode } : {}
+    const resp = await fetch(url, { headers })
     if (resp.status === 404) return null
     if (!resp.ok) {
       console.warn('Calibration fetch failed:', resp.status)
@@ -512,5 +536,3 @@ async function uploadCalibration(subjectId, data, uploadCode) {
     return false
   }
 }
-
-

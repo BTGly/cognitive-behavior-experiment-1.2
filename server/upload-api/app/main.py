@@ -110,6 +110,13 @@ def _calibration_path(subject_id: str) -> Path:
     return STORAGE_DIR / 'subjects' / sid / 'calibration.json'
 
 
+def _verify_auth(x_upload_token: str | None) -> None:
+    if not UPLOAD_TOKEN:
+        raise HTTPException(status_code=500, detail='UPLOAD_TOKEN is not configured')
+    if x_upload_token != UPLOAD_TOKEN:
+        raise HTTPException(status_code=401, detail='Invalid upload token')
+
+
 def _validate_formal_schedule(body: dict) -> None:
     """Validate calibration v2 formal_schedule before storing."""
     if body.get('schema_version') != 2:
@@ -134,8 +141,12 @@ def _validate_formal_schedule(body: dict) -> None:
 
 
 @app.get('/api/subject/{subject_id}/calibration')
-def get_calibration(subject_id: str):
-    """Return stored calibration for a subject (no auth needed — read-only)."""
+def get_calibration(
+    subject_id: str,
+    x_upload_token: str | None = Header(default=None),
+):
+    """Return stored calibration for a subject (auth required — v2 exposes full formal schedule)."""
+    _verify_auth(x_upload_token)
     path = _calibration_path(subject_id)
     if not path.exists():
         raise HTTPException(status_code=404, detail='No calibration found for this subject')
@@ -149,10 +160,7 @@ async def store_calibration(
     x_upload_token: str | None = Header(default=None),
 ):
     """Store calibration v2 artifact after pretest completes (auth required)."""
-    if not UPLOAD_TOKEN:
-        raise HTTPException(status_code=500, detail='UPLOAD_TOKEN is not configured')
-    if x_upload_token != UPLOAD_TOKEN:
-        raise HTTPException(status_code=401, detail='Invalid upload token')
+    _verify_auth(x_upload_token)
 
     try:
         body = await request.json()
@@ -176,7 +184,9 @@ async def store_calibration(
     body['stored_at'] = now_utc_iso()
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(body, ensure_ascii=False, indent=2), encoding='utf-8')
+    tmp_path = path.with_suffix('.json.tmp')
+    tmp_path.write_text(json.dumps(body, ensure_ascii=False, indent=2), encoding='utf-8')
+    tmp_path.replace(path)
 
     return {'ok': True, 'subject_id': body['subject_id'], 'stored_at': body['stored_at']}
 
@@ -188,11 +198,7 @@ async def upload_session(
     x_upload_token: str | None = Header(default=None),
     user_agent: str | None = Header(default=None),
 ):
-    if not UPLOAD_TOKEN:
-        raise HTTPException(status_code=500, detail='UPLOAD_TOKEN is not configured')
-
-    if x_upload_token != UPLOAD_TOKEN:
-        raise HTTPException(status_code=401, detail='Invalid upload token')
+    _verify_auth(x_upload_token)
 
     try:
         meta = json.loads(metadata)
