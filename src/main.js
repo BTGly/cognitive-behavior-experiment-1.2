@@ -21,15 +21,6 @@ import { buildPracticeTimeline } from './timeline/practice.js'
 import { buildPretestTimeline } from './timeline/pretest.js'
 import { buildFormalTimeline } from './timeline/formal.js'
 
-const DEFAULT_SELECTED_ALPHAS = {
-  D1: 0.10,
-  D2: 0.30,
-  D3: 0.46,
-  D4: 0.54,
-  D5: 0.70,
-  D6: 0.90
-}
-
 showParamForm()
 
 function showParamForm() {
@@ -205,14 +196,15 @@ async function startExperiment() {
         calibrationSummaryRows = buildCalibrationSummary(selectedInfo, mu, sigma, nll, expectedMetrics, FORMAL_PLAN)
       } else {
         console.warn('Pretest invalid, skipping formal experiment')
+        target.innerHTML = `<div class="instruction-text">
+          <h2>预实验数据不足</h2>
+          <p>预实验结果未能产生足够的有效数据（需要至少6个不同的模糊等级）。</p>
+          <p>无法生成个性化的正式实验参数。</p>
+          <p>请刷新页面重新开始，并在预实验中认真完成每个试次。</p>
+          <p style="color:#888;font-size:14px;">（按 Esc 或关闭全屏可退出）</p>
+        </div>`
+        return
       }
-    } else if (!params.run_pretest) {
-      selected = { ...DEFAULT_SELECTED_ALPHAS }
-      selectedInfo = buildDefaultSelectedInfo(selected)
-      const totalPlannedTrials = FORMAL_PLAN.reduce((s, c) => s + parseInt(c.n_trials), 0)
-      const expectedMetrics = computeExpectedMetrics(selectedInfo, totalPlannedTrials, FORMAL_PLAN)
-      calibrationSummaryRows = buildCalibrationSummary(selectedInfo, null, null, null, expectedMetrics, FORMAL_PLAN)
-      console.warn('Pretest disabled, using default selected alphas:', selected)
     }
 
     if (selected && selectedInfo) {
@@ -294,46 +286,6 @@ async function loadFormalImagePool(pretestUsedPaths) {
     )
   }
   return alphaToImages
-}
-
-function buildDefaultSelectedInfo(selected) {
-  const info = {}
-  for (const cfg of FORMAL_PLAN) {
-    const dname = cfg.difficulty_id
-    const selectedAlpha = selected[dname]
-    const targetP8 = parseFloat(cfg.target_p8)
-    const cfgLabel = parseInt(cfg.label_digit)
-    const [lowWin, highWin] = P8_WINDOWS[dname] || [0.0, 1.0]
-    info[dname] = {
-      difficulty_id: dname,
-      selection_mode: 'default_fallback',
-      selected_alpha: selectedAlpha,
-      target_p8: targetP8,
-      fitted_p8: targetP8,
-      fitted_p8_logistic: targetP8,
-      fitted_p8_mono: targetP8,
-      target_gap: 0,
-      ideal_alpha_logistic: selectedAlpha,
-      label_digit: cfgLabel,
-      n_trials: parseInt(cfg.n_trials),
-      candidate_count: 1,
-      feasible_p8_min: targetP8,
-      feasible_p8_max: targetP8,
-      target_reachable_by_side: true,
-      target_feasible: true,
-      expected_correct: cfgLabel === 3 ? 1.0 - targetP8 : targetP8,
-      p8_window_low: lowWin,
-      p8_window_high: highWin,
-      p8_window_ok: true,
-      anchor_fixed_used: false,
-      anchor_candidates: '',
-      anchor_fallback_used: false,
-      duplicate_fallback_used: false,
-      reserved_anchor_fallback_used: false,
-      warning_msg: 'default_alpha_fallback_no_pretest'
-    }
-  }
-  return info
 }
 
 function showStartupError(err) {

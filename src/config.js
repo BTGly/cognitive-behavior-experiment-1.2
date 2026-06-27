@@ -5,7 +5,6 @@ export function createParamForm() {
   const startGroup = escapeAttr(externalParams.start_group || '1')
   const endGroup = escapeAttr(externalParams.end_group || '11')
   const uploadCode = escapeAttr(externalParams.upload_code || externalParams.upload_key || '')
-  const runPretestChecked = isEnabledParam(externalParams.run_pretest, true) ? 'checked' : ''
 
   const formHtml = `
     <div class="param-form">
@@ -14,7 +13,6 @@ export function createParamForm() {
       <label>练习次数: <input type="number" id="practice_count" value="${practiceCount}" min="0" max="80"></label>
       <label>起始组: <input type="number" id="start_group" value="${startGroup}" min="1" max="11"></label>
       <label>结束组: <input type="number" id="end_group" value="${endGroup}" min="1" max="11"></label>
-      <label>运行预实验: <input type="checkbox" id="run_pretest" ${runPretestChecked}></label>
       <label>上传授权码: <input type="password" id="upload_code" value="${uploadCode}" autocomplete="off"></label>
       <br>
       <button id="start-btn">开始实验</button>
@@ -44,7 +42,7 @@ export function readFormParams() {
     practice_count: Number.isNaN(practiceCount) ? 24 : practiceCount,
     start_group: Number.isNaN(startGroup) ? 1 : startGroup,
     end_group: Number.isNaN(endGroup) ? 11 : endGroup,
-    run_pretest: runPretestEl ? (runPretestEl.checked ? 1 : 0) : 1,
+    run_pretest: 1,  // 预实验强制必做，不可跳过
     upload_code: uploadCodeEl?.value.trim() || ''
   }
   window.__experimentParams = params
