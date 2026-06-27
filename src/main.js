@@ -214,13 +214,20 @@ async function startExperiment() {
         calibrationSummaryRows = buildCalibrationSummary(selectedInfo, mu, sigma, nll, expectedMetrics, FORMAL_PLAN)
 
         // Upload calibration so subject can skip pretest next time
+        // 保护规则: 非 TEST 被试已有校准时不覆盖（需手动清除）
         if (params.upload_code) {
-          uploadCalibration(params.participant, {
-            mu, sigma, nll,
-            selected,
-            selectedInfo,
-            pretestAlphaSummaryRows
-          }, params.upload_code).catch(err => console.warn('Calibration upload failed:', err))
+          const existingCal = await fetchStoredCalibration(params.participant)
+          const isTestSubject = /^TEST_/i.test(params.participant)
+          if (existingCal?.selected && !isTestSubject) {
+            console.log('Calibration already exists for', params.participant, '— skipping upload to protect existing data')
+          } else {
+            uploadCalibration(params.participant, {
+              mu, sigma, nll,
+              selected,
+              selectedInfo,
+              pretestAlphaSummaryRows
+            }, params.upload_code).catch(err => console.warn('Calibration upload failed:', err))
+          }
         }
       } else {
         console.warn('Pretest invalid, skipping formal experiment')

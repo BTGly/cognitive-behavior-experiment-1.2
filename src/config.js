@@ -9,6 +9,10 @@ export function createParamForm() {
   const formHtml = `
     <div class="param-form">
       <h1>模糊辨别实验</h1>
+      <p style="font-size:13px;color:#aaa;margin-bottom:16px;">
+        被试编号由实验负责人提供，请勿填写姓名或学号。<br>
+        如果已有实验记录，输入同一编号可跳过预实验。
+      </p>
       <label>被试编号: <input type="text" id="participant" value="${participant}" autocomplete="off"></label>
       <label>练习次数: <input type="number" id="practice_count" value="${practiceCount}" min="0" max="80"></label>
       <label>起始组: <input type="number" id="start_group" value="${startGroup}" min="1" max="11"></label>
