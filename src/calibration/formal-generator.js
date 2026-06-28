@@ -78,37 +78,15 @@ export function splitBlocks(formalTrials, nBlocks, blockSize, seed) {
     throw new Error(`正式 trial 总数错误：${formalTrials.length}，应为 ${nBlocks * blockSize}。`)
   }
 
+  // 全局随机后直接切 block，不做分层均衡
+  const shuffled = rng.shuffle(formalTrials)
+
   const blockDistributionRows = []
   const formalBlocks = {}
-  const blockBuckets = Array.from({ length: nBlocks }, () => [])
-  const byDifficulty = {}
-
-  for (const trial of formalTrials) {
-    const dname = trial.difficulty_id || 'unknown'
-    if (!byDifficulty[dname]) byDifficulty[dname] = []
-    byDifficulty[dname].push(trial)
-  }
-
-  const difficultyIds = Object.keys(byDifficulty).sort()
-  for (const dname of difficultyIds) {
-    const dTrials = rng.shuffle(byDifficulty[dname])
-    for (const trial of dTrials) {
-      let targetBlock = 0
-      for (let i = 1; i < nBlocks; i++) {
-        if (blockBuckets[i].length < blockBuckets[targetBlock].length) {
-          targetBlock = i
-        }
-      }
-      if (blockBuckets[targetBlock].length >= blockSize) {
-        throw new Error('正式 block 分层分配失败：目标 block 已满。')
-      }
-      blockBuckets[targetBlock].push(trial)
-    }
-  }
 
   let globalTrialIndex = 1
   for (let b = 1; b <= nBlocks; b++) {
-    const blockTrials = blockBuckets[b - 1]
+    const blockTrials = shuffled.slice((b - 1) * blockSize, b * blockSize)
     if (blockTrials.length !== blockSize) {
       throw new Error(`Block ${b} trial 数错误：${blockTrials.length}，应为 ${blockSize}。`)
     }
