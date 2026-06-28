@@ -61,20 +61,25 @@ No build tools required. The experiment uses CDN-loaded jsPsych + ES modules.
 
 Set via the start form:
 
-- `participant`: Subject ID
+- `participant`: Subject ID (required)
+- `upload_code`: Server upload authorization code (required)
 - `practice_count`: Number of practice trials (0-80, default 24)
 - `start_group` / `end_group`: Formal block range (1-11)
-- `run_pretest`: Run pretest (on/off, default on)
+
+Note: Pretest is always required. Upload code must be filled — the experiment blocks without it.
 
 ## Data Export
 
-Experiment结束时自动下载 ZIP，包含：
+At the end of the experiment, a ZIP is automatically downloaded containing:
 
 - `{subject}_raw_data.csv`
 - `{subject}_pretest_alpha_summary.csv`
 - `{subject}_calibration_summary.csv`
 - `{subject}_formal_block_distribution_summary.csv`
 - `{subject}_formal_block_*.csv` (per block)
+- `{subject}_formal_schedule_source.json` (audit provenance)
+
+The same ZIP is then uploaded to the server if `upload_code` is provided (required for formal subjects).
 
 ## Deployment
 

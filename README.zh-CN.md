@@ -58,18 +58,19 @@ src/data/                   数据 schema、summary、CSV/ZIP 导出
 
 参数页包含：
 
-- `participant`：被试编号，例如 `S001`。
+- `participant`：被试编号，例如 `S001`（必填）。
+- `upload_code`：服务器上传授权码（必填）。不填无法开始实验。
 - `practice_count`：练习 trial 数，默认 24，可设为 0 跳过练习。
 - `start_group` / `end_group`：正式实验运行轮次，范围 1-11，支持分段实验。
-- `run_pretest`：是否运行预实验。
-- `upload_code`：服务器上传授权码。留空时只下载本地 ZIP，不上传。
+
+注意：预实验固定运行，不可跳过。upload_code 必须填写，否则实验会阻断并提示。
 
 如果一个被试分多次完成正式实验，可固定同一个被试编号，并设置不同轮次范围，例如 `1-2`、`3-5`、`6-8`、`9-11`。
 
 也可以用 URL 参数预填，例如：
 
 ```text
-https://btgly.github.io/jsPsych-blur-experiment/?participant=S001&start_group=1&end_group=2&run_pretest=1
+https://btgly.github.io/jsPsych-blur-experiment/?participant=S001&upload_code=SZU&start_group=1&end_group=2
 ```
 
 ## 当前数据保存方式
@@ -84,6 +85,7 @@ ZIP 内包含：
 {subject}_calibration_summary.csv
 {subject}_formal_block_distribution_summary.csv
 {subject}_formal_block_01.csv ... {subject}_formal_block_11.csv
+{subject}_formal_schedule_source.json
 ```
 
 说明：
@@ -91,6 +93,9 @@ ZIP 内包含：
 - `raw_data.csv` 保存实际作答数据，包含练习、预实验、正式实验和提前结束标记。
 - `formal_block_*.csv` 保存正式实验生成出来的 block/trial 计划和抽图结果。
 - `calibration_summary.csv` 和 `pretest_alpha_summary.csv` 保存预实验校准结果。
+- `formal_schedule_source.json` 审计记录，标注正式排程来源（首次生成/服务器缓存）、`formal_schedule_hash` 等。
+
+正式被试的完整正式排程（formalBlocks）会保存到服务器。再次实验时直接读取服务器缓存，不重新抽图或分块。
 
 ## 自动上传后端
 
