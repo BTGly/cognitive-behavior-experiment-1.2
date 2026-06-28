@@ -131,9 +131,9 @@ def _stable_stringify(value) -> str:
         return '[' + ','.join(_stable_stringify(v) for v in value) + ']'
     if isinstance(value, dict):
         keys = sorted(value.keys())
-        pairs = [json.dumps(k) + ':' + _stable_stringify(value[k]) for k in keys]
+        pairs = [json.dumps(k, ensure_ascii=False, separators=(',', ':')) + ':' + _stable_stringify(value[k]) for k in keys]
         return '{' + ','.join(pairs) + '}'
-    return json.dumps(value)
+    return json.dumps(value, ensure_ascii=False, separators=(',', ':'))
 
 
 def _compute_blocks_hash(blocks: dict) -> str:

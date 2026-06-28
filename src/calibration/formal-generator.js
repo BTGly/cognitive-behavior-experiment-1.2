@@ -5,6 +5,14 @@ function labelTypeFromDigit(labelDigitValue) {
   return parseInt(labelDigitValue) === 3 ? 'normal' : 'defect'
 }
 
+export function normalizeLabelType(value, labelDigit) {
+  const d = parseInt(labelDigit)
+  if (d === 3) return 'normal'
+  if (d === 8) return 'defect'
+  if (value === 'abnormal') return 'defect'
+  return value || ''
+}
+
 function normalizePath(path) {
   return path.replace(/\\/g, '/').replace(/\/+/g, '/')
 }

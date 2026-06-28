@@ -3,6 +3,7 @@ import { conditionPath, assetPath, normalizePath } from '../paths.js'
 import { getDateStr, readFormParams } from '../config.js'
 import { practiceEndTimeline, practiceFeedbackTimeline } from '../task/feedback.js'
 import { createRNG, seedFromParticipant } from '../random.js'
+import { normalizeLabelType } from '../calibration/formal-generator.js'
 import HoldResponseTrialPlugin from '../task/hold-response-trial.js'
 
 export async function buildPracticeTimeline(jsPsych) {
@@ -41,8 +42,8 @@ export async function buildPracticeTimeline(jsPsych) {
       difficulty_rank: 0,
       alpha: row.alpha,
       label_digit: parseInt(row.label_digit),
-      label_type: row.label_type,
-      sample_type: row.label_type,
+      label_type: normalizeLabelType(row.label_type, row.label_digit),
+      sample_type: normalizeLabelType(row.sample_type || row.label_type, row.label_digit),
       image_path: rawImagePath,
       participant: params.participant,
       date: getDateStr()
