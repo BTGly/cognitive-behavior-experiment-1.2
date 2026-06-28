@@ -81,6 +81,14 @@ At the end of the experiment, a ZIP is automatically downloaded containing:
 
 The same ZIP is then uploaded to the server if `upload_code` is provided (required for formal subjects).
 
+## Fallback (Windows only)
+
+If the web version does not work, download the standalone Windows build:
+
+> **Download**: [Cognitive Behavior Experiment 1.2 — Windows](https://github.com/BTGly/jsPsych-blur-experiment/releases/tag/v1.2-fallback) (283 MB, extract and run `双击开始实验.exe`)
+>
+> No Python installation required. Windows only.
+
 ## Deployment
 
 Push to GitHub and enable Pages (Settings → Pages → deploy from `master` `/`).

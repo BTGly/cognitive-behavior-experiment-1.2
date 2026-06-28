@@ -142,6 +142,14 @@ https://exp-api.cognitive-testing.cn
 
 注意：GitHub Pages 页面是 HTTPS，上传 API 也必须使用 HTTPS，否则浏览器会拦截 mixed content。
 
+## 备用方案
+
+如果网页版无法运行，可下载 Windows 本地版：
+
+> **下载**：[认知行为实验 1.2 本地版](https://github.com/BTGly/jsPsych-blur-experiment/releases/tag/v1.2-fallback)（283 MB，解压后运行 `双击开始实验.exe`）
+>
+> 仅 Windows 系统可用，不需要安装 Python，解压即用。
+
 ## 部署
 
 推送到 GitHub 后，在仓库 Settings → Pages 中启用 GitHub Pages，来源选择 `master` 分支根目录。
