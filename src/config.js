@@ -1,6 +1,6 @@
 export function createParamForm() {
   const externalParams = readExternalParams()
-  const participant = escapeAttr(externalParams.participant || 'S001')
+  const participant = escapeAttr(externalParams.participant || 'S')
   const practiceCount = escapeAttr(externalParams.practice_count || '24')
   const startGroup = escapeAttr(externalParams.start_group || '1')
   const endGroup = escapeAttr(externalParams.end_group || '11')
@@ -10,10 +10,11 @@ export function createParamForm() {
     <div class="param-form">
       <h1>认知行为实验 1.2</h1>
       <p style="font-size:13px;color:#aaa;margin-bottom:16px;">
-        被试编号由实验负责人提供，请勿填写姓名或学号。<br>
+        正式被试编号格式：<b>S</b> + 三位数字（如 S001）<br>
+        测试请使用 <b>TEST_</b> + 三位数字（如 TEST_001）<br>
         如果已有实验记录，输入同一编号可跳过预实验。
       </p>
-      <label>被试编号: <input type="text" id="participant" value="${participant}" autocomplete="off"></label>
+      <label>被试编号: <input type="text" id="participant" value="${participant}" placeholder="S___" autocomplete="off" style="width:120px;"></label>
       <label>练习次数: <input type="number" id="practice_count" value="${practiceCount}" min="0" max="80"></label>
       <label>起始组: <input type="number" id="start_group" value="${startGroup}" min="1" max="11"></label>
       <label>结束组: <input type="number" id="end_group" value="${endGroup}" min="1" max="11"></label>
@@ -55,8 +56,10 @@ export function readFormParams() {
 export function validateParams(params) {
   const errors = []
 
-  if (!/^[A-Za-z0-9_-]{1,32}$/.test(params.participant)) {
-    errors.push('被试编号只能包含英文、数字、下划线和短横线，长度 1–32 位。')
+  if (/^TEST_\d{3}$/.test(params.participant)) {
+    // 测试模式，允许
+  } else if (!/^S\d{3}$/.test(params.participant)) {
+    errors.push('被试编号格式错误。正式被试请输入 S + 三位数字（如 S001），测试请输入 TEST_ + 三位数字（如 TEST_001）。')
   }
 
   const sg = params.start_group
