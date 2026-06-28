@@ -17,6 +17,10 @@ export function buildFormalTimeline(jsPsych, formalBlocks) {
     return n >= startGroup && n <= endGroup
   })
 
+  if (activeBlockIds.length === 0) {
+    throw new Error(`没有可运行的正式 block：start_group=${startGroup}, end_group=${endGroup}，有效 block 范围 1–${blockIds.length}`)
+  }
+
   for (let bi = 0; bi < activeBlockIds.length; bi++) {
     const blockId = activeBlockIds[bi]
     const trials = formalBlocks[blockId]

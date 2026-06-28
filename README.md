@@ -72,7 +72,9 @@ src/data/                   数据 schema、summary、CSV/ZIP 导出
 也可以用 URL 参数预填，例如：
 
 ```text
-https://btgly.github.io/jsPsych-blur-experiment/?participant=S001&upload_code=SZU&start_group=1&end_group=2
+https://btgly.github.io/jsPsych-blur-experiment/?participant=S001&start_group=1&end_group=2
+
+> 注意：`upload_code` 请勿写入 URL，由被试在页面中手动输入。
 ```
 
 ## 当前数据保存方式

@@ -156,6 +156,29 @@ def _validate_formal_schedule(body: dict) -> None:
     if total != 1100:
         raise HTTPException(status_code=400, detail='formal schedule total trials must be 1100')
 
+    # Verify each trial has required fields
+    required_fields = ['block_id', 'trial_in_block', 'difficulty_id', 'alpha', 'label_digit', 'image_path']
+    for b in range(1, 12):
+        key = str(b)
+        trials = blocks[key]
+        for j, trial in enumerate(trials, start=1):
+            for field in required_fields:
+                if field not in trial:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f'missing required field "{field}" in block {b} trial {j}'
+                    )
+            if int(trial.get('block_id')) != b:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f'block_id mismatch in block {b} trial {j}: expected {b}, got {trial["block_id"]}'
+                )
+            if int(trial.get('trial_in_block')) != j:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f'trial_in_block mismatch in block {b} trial {j}: expected {j}, got {trial["trial_in_block"]}'
+                )
+
     # Verify formal_schedule_hash matches computed hash of blocks
     client_hash = body.get('formal_schedule_hash')
     if not client_hash:

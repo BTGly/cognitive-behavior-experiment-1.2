@@ -1,6 +1,6 @@
 import { loadCSV } from './csv.js'
 import { conditionPath, assetPath, normalizePath } from './paths.js'
-import { createParamForm, readFormParams, getDateStr } from './config.js'
+import { createParamForm, readFormParams, getDateStr, validateParams } from './config.js'
 import { seedFromParticipant } from './random.js'
 import { preloadImages } from './preload.js'
 import { fitLogisticGrid } from './calibration/logistic.js'
@@ -11,7 +11,7 @@ import { loadFormalImagePool } from './data/formal-pool.js'
 import { computePretestAlphaSummary, buildCalibrationSummary, computeExpectedMetrics } from './data/summaries.js'
 import { verifyPretestRecords } from './qc/checks.js'
 import { buildAllDataZip, downloadBlob, downloadCSV } from './data/export-csv.js'
-import { getUploadEndpoint, sha256Blob, uploadSessionZip } from './data/upload.js'
+import { getUploadEndpoint, getUploadApiBase, sha256Blob, uploadSessionZip } from './data/upload.js'
 import { RAW_DATA_FIELDS } from './data/schemas.js'
 
 import {
@@ -60,12 +60,12 @@ async function startExperiment() {
   const target = document.getElementById('jspsych-target')
   const params = readFormParams()
 
-  // Force upload_code — required to persist formal schedule on server
-  if (!params.upload_code) {
+  // Validate all parameters before proceeding
+  const paramErrors = validateParams(params)
+  if (paramErrors.length > 0) {
     target.innerHTML = `<div class="instruction-text" style="color:#f44336;">
-      <h2>缺少上传授权码</h2>
-      <p>正式实验需要上传授权码，用于在服务器保存个体化正式实验排程。</p>
-      <p>请返回参数页填写上传授权码后重新开始。</p>
+      <h2>参数错误</h2>
+      ${paramErrors.map(e => `<p>${escapeHtml(e)}</p>`).join('')}
       <button onclick="location.reload()" style="font-size:18px;padding:8px 30px;margin-top:16px;cursor:pointer;">返回参数页</button>
     </div>`
     return
@@ -473,7 +473,10 @@ function triggerDownload(jsPsych, abortInfo = null) {
       if (params.upload_code) {
         try {
           const sha256 = await sha256Blob(blob)
-          const metadata = buildUploadMetadata(params, allData, abortInfo, dateStr, sha256)
+          const metadata = buildUploadMetadata(params, allData, abortInfo, dateStr, sha256, {
+            scheduleSource: collector.scheduleSource || 'none',
+            formalScheduleHash: collector.formalScheduleHash || ''
+          })
           const uploadResult = await uploadSessionZip({
             blob,
             filename,
@@ -504,7 +507,7 @@ function triggerDownload(jsPsych, abortInfo = null) {
   }, 100)
 }
 
-function buildUploadMetadata(params, allData, abortInfo, dateStr, sha256) {
+function buildUploadMetadata(params, allData, abortInfo, dateStr, sha256, extraFields = {}) {
   const trialRows = allData.filter(row => row.phase && row.choice_digit !== undefined)
   const validTrialRows = trialRows.filter(row => parseInt(row.response_timeout) !== 1)
 
@@ -520,7 +523,9 @@ function buildUploadMetadata(params, allData, abortInfo, dateStr, sha256) {
     abort_reason: abortInfo?.abort_reason || '',
     sha256,
     created_at: new Date().toISOString(),
-    app_version: 'web-static'
+    app_version: 'web-static',
+    schedule_source: extraFields.scheduleSource || 'none',
+    formal_schedule_hash: extraFields.formalScheduleHash || ''
   }
 }
 
@@ -542,11 +547,13 @@ function escapeHtml(value) {
 
 // ---- Calibration cache helpers ----
 
-const CALIBRATION_API_BASE = 'https://exp-api.cognitive-testing.cn'
+function getCalibrationApiBase() {
+  return getUploadApiBase()
+}
 
 async function fetchStoredCalibration(subjectId, uploadCode) {
   try {
-    const url = `${CALIBRATION_API_BASE}/api/subject/${encodeURIComponent(subjectId)}/calibration`
+    const url = `${getCalibrationApiBase()}/api/subject/${encodeURIComponent(subjectId)}/calibration`
     const headers = uploadCode ? { 'X-Upload-Token': uploadCode } : {}
     const resp = await fetch(url, { headers })
     if (resp.status === 401) {
@@ -568,7 +575,7 @@ async function fetchStoredCalibration(subjectId, uploadCode) {
 
 async function uploadCalibration(subjectId, data, uploadCode) {
   try {
-    const url = `${CALIBRATION_API_BASE}/api/calibration/${encodeURIComponent(subjectId)}`
+    const url = `${getCalibrationApiBase()}/api/calibration/${encodeURIComponent(subjectId)}`
     const resp = await fetch(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'X-Upload-Token': uploadCode },

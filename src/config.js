@@ -52,6 +52,27 @@ export function readFormParams() {
   return params
 }
 
+export function validateParams(params) {
+  const errors = []
+
+  if (!/^[A-Za-z0-9_-]{1,32}$/.test(params.participant)) {
+    errors.push('被试编号只能包含英文、数字、下划线和短横线，长度 1–32 位。')
+  }
+
+  const sg = params.start_group
+  const eg = params.end_group
+  if (!Number.isInteger(sg) || !Number.isInteger(eg) ||
+      sg < 1 || eg > 11 || sg > eg) {
+    errors.push('起始组/结束组必须满足 1 ≤ 起始组 ≤ 结束组 ≤ 11。')
+  }
+
+  if (!params.upload_code) {
+    errors.push('上传授权码不能为空。')
+  }
+
+  return errors
+}
+
 export function getDateStr() {
   const d = new Date()
   const pad2 = (n) => String(n).padStart(2, '0')

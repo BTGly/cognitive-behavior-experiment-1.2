@@ -1,9 +1,14 @@
 export const DEFAULT_UPLOAD_API_BASE = 'https://exp-api.cognitive-testing.cn'
 
+export function getUploadApiBase() {
+  if (window.__UPLOAD_ENDPOINT) {
+    return new URL('.', window.__UPLOAD_ENDPOINT).href.replace(/\/+$/, '')
+  }
+  return (window.__UPLOAD_API_BASE || DEFAULT_UPLOAD_API_BASE).replace(/\/+$/, '')
+}
+
 export function getUploadEndpoint() {
-  if (window.__UPLOAD_ENDPOINT) return window.__UPLOAD_ENDPOINT
-  const baseUrl = window.__UPLOAD_API_BASE || DEFAULT_UPLOAD_API_BASE
-  return `${baseUrl.replace(/\/+$/, '')}/api/upload-session`
+  return `${getUploadApiBase()}/api/upload-session`
 }
 
 export async function sha256Blob(blob) {
