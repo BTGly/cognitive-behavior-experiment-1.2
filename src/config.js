@@ -69,6 +69,11 @@ export function validateParams(params) {
     errors.push('起始组/结束组必须满足 1 ≤ 起始组 ≤ 结束组 ≤ 11。')
   }
 
+  const pc = params.practice_count
+  if (!Number.isInteger(pc) || pc < 0 || pc > 80) {
+    errors.push('练习次数必须在 0–80 之间。')
+  }
+
   if (!params.upload_code) {
     errors.push('上传授权码不能为空。')
   }
