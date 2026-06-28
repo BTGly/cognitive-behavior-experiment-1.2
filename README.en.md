@@ -2,7 +2,7 @@
 
 [中文说明](README.md)
 
-Web-based blur discrimination experiment migrated from PsychoPy to [jsPsych](https://www.jspsych.org/) 8.0.
+Web-based cognitive behavior experiment migrated from PsychoPy to [jsPsych](https://www.jspsych.org/) 8.0.
 
 **Live**: https://btgly.github.io/cognitive-behavior-experiment-1.2/  
 **Golden Test**: https://btgly.github.io/cognitive-behavior-experiment-1.2/golden-test.html  
@@ -60,14 +60,23 @@ No build tools required. The experiment uses CDN-loaded jsPsych + ES modules.
 
 ## Key Parameters
 
-Set via the start form:
+The start form shows only:
 
-- `participant`: Subject ID (required)
+- `participant`: Subject ID, e.g. `S001` (required)
 - `upload_code`: Server upload authorization code (required)
-- `practice_count`: Number of practice trials (0-80, default 24)
-- `start_group` / `end_group`: Formal block range (1-11)
 
-Note: Pretest is always required. Upload code must be filled — the experiment blocks without it.
+Other parameters are available under **Experimenter Advanced Settings**:
+
+- `practice_count`: Number of practice trials (0–80, default 24)
+- `start_group` / `end_group`: Formal block range (1–11)
+
+For resumed sessions, keep the default `start_group=1` and `end_group=11`. The system will automatically:
+
+- skip completed blocks
+- resume from the next incomplete block
+- block repeated completed blocks
+- block skipped incomplete blocks
+- show "experiment complete" after all 11 blocks are finished
 
 ## Data Export
 
@@ -78,7 +87,7 @@ At the end of the experiment, a ZIP is automatically downloaded containing:
 - `{subject}_calibration_summary.csv`
 - `{subject}_formal_block_distribution_summary.csv`
 - `{subject}_formal_block_*.csv` (per block)
-- `{subject}_formal_schedule_source.json` (audit provenance)
+- `{subject}_formal_schedule_source.json` (audit provenance: schedule source, `formal_schedule_hash`, `completed_blocks`, `partial_blocks`, `formal_block_counts`)
 
 The same ZIP is then uploaded to the server if `upload_code` is provided (required for formal subjects).
 
