@@ -68,13 +68,13 @@ src/data/                   数据 schema、summary、CSV/ZIP 导出
 
 注意：预实验固定运行，不可跳过。upload_code 必须填写，否则实验会阻断并提示。
 
-如果一个被试分多次完成正式实验，可固定同一个被试编号，并设置不同轮次范围，例如 `1-2`、`3-5`、`6-8`、`9-11`。
+分次完成时，同一被试再次进入实验，保持默认 1–11 即可，系统会自动：
 
-也可以用 URL 参数预填，例如：
-
-```text
-https://btgly.github.io/cognitive-behavior-experiment-1.2/?participant=S001&start_group=1&end_group=2
-```
+- 跳过已完成轮次
+- 从下一轮开始
+- 如选择与已完成轮次重叠，会阻断并提示
+- 如跳过未完成轮次，会阻断并提示
+- 全部 11 轮完成后，会提示"实验已完成"
 
 > 注意：`upload_code` 请勿写入 URL，由被试在页面中手动输入。
 
@@ -98,7 +98,7 @@ ZIP 内包含：
 - `raw_data.csv` 保存实际作答数据，包含练习、预实验、正式实验和提前结束标记。
 - `formal_block_*.csv` 保存正式实验生成出来的 block/trial 计划和抽图结果。
 - `calibration_summary.csv` 和 `pretest_alpha_summary.csv` 保存预实验校准结果。
-- `formal_schedule_source.json` 审计记录，标注正式排程来源（首次生成/服务器缓存）、`formal_schedule_hash` 等。
+- `formal_schedule_source.json` 审计记录，标注正式排程来源（首次生成/服务器缓存）、`formal_schedule_hash`、`completed_blocks`、`partial_blocks`、`formal_block_counts` 等。
 
 正式被试的完整正式排程（formalBlocks）会保存到服务器。再次实验时直接读取服务器缓存，不重新抽图或分块。
 
