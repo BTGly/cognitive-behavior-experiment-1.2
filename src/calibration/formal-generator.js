@@ -2,7 +2,7 @@ import { FORMAL_PLAN } from './select-alpha.js'
 import { createRNG } from '../random.js'
 
 function labelTypeFromDigit(labelDigitValue) {
-  return parseInt(labelDigitValue) === 3 ? 'normal' : 'abnormal'
+  return parseInt(labelDigitValue) === 3 ? 'normal' : 'defect'
 }
 
 function normalizePath(path) {

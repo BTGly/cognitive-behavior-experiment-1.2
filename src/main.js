@@ -278,6 +278,16 @@ async function startExperiment() {
         const expectedMetrics = computeExpectedMetrics(selectedInfo, totalPlannedTrials, FORMAL_PLAN)
         calibrationSummaryRows = buildCalibrationSummary(selectedInfo, mu, sigma, nll, expectedMetrics, FORMAL_PLAN)
 
+        // Block if AUC is too low (matches Python behavior)
+        if (expectedMetrics.aucQcStatus === 'fail') {
+          target.innerHTML = `<div class="instruction-text" style="color:#f44336;">
+            <h2>校准质量过低</h2>
+            <p>预期 AUC = ${expectedMetrics.expectedAucBinary.toFixed(3)}，低于最低阈值 ${expectedMetrics.AUC_HARD}。</p>
+            <p>请重新进行预实验。</p>
+          </div>`
+          return
+        }
+
         // Build formal schedule FIRST, then upload
         formalSchedule = await buildFormalSchedule({
           selected,

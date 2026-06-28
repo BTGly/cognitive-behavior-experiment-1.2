@@ -41,7 +41,7 @@ function labelSideOk(alphaValue, labelDigitValue, boundary = 0.50) {
 }
 
 function labelTypeFromDigit(labelDigitValue) {
-  return parseInt(labelDigitValue) === 3 ? 'normal' : 'abnormal'
+  return parseInt(labelDigitValue) === 3 ? 'normal' : 'defect'
 }
 
 export function selectAlphas(

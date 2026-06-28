@@ -65,7 +65,13 @@ export function buildCalibrationSummary(selectedInfo, mu, sigma, nll, expectedMe
       expected_balanced_accuracy: expectedMetrics.expectedBalancedAccuracy,
       expected_mcc: expectedMetrics.expectedMcc,
       auc_qc_status: expectedMetrics.aucQcStatus,
-      mcc_qc_status: expectedMetrics.mccQcStatus
+      mcc_qc_status: expectedMetrics.mccQcStatus,
+      auc_target: expectedMetrics.AUC_TARGET,
+      auc_soft_floor: expectedMetrics.AUC_SOFT,
+      auc_hard_floor: expectedMetrics.AUC_HARD,
+      mcc_target: expectedMetrics.MCC_TARGET,
+      mcc_soft_floor: expectedMetrics.MCC_SOFT,
+      mcc_hard_floor: expectedMetrics.MCC_HARD
     })
   }
   return rows
@@ -125,6 +131,8 @@ export function computeExpectedMetrics(selectedInfo, totalPlannedTrials, FORMAL_
     expectedBalancedAccuracy,
     expectedMcc,
     aucQcStatus: qcStatus(expectedAucBinary, AUC_TARGET, AUC_SOFT, AUC_HARD),
-    mccQcStatus: qcStatus(expectedMcc, MCC_TARGET, MCC_SOFT, MCC_HARD)
+    mccQcStatus: qcStatus(expectedMcc, MCC_TARGET, MCC_SOFT, MCC_HARD),
+    AUC_TARGET, AUC_SOFT, AUC_HARD,
+    MCC_TARGET, MCC_SOFT, MCC_HARD
   }
 }

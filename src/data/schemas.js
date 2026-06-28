@@ -24,7 +24,9 @@ export const CALIBRATION_SUMMARY_FIELDS = [
   'mu', 'sigma', 'nll',
   'expected_accuracy_overall', 'expected_fpr', 'expected_tpr',
   'expected_auc_binary', 'expected_balanced_accuracy', 'expected_mcc',
-  'auc_qc_status', 'mcc_qc_status'
+  'auc_qc_status', 'mcc_qc_status',
+  'auc_target', 'auc_soft_floor', 'auc_hard_floor',
+  'mcc_target', 'mcc_soft_floor', 'mcc_hard_floor'
 ]
 
 export const BLOCK_DISTRIBUTION_FIELDS = [
