@@ -1,6 +1,7 @@
 import { getDateStr, readFormParams } from '../config.js'
 import { blockFeedbackTimeline, formalBlockIntroTimeline } from '../task/feedback.js'
 import { assetPath, normalizePath } from '../paths.js'
+import { normalizeLabelType } from '../calibration/formal-generator.js'
 import HoldResponseTrialPlugin from '../task/hold-response-trial.js'
 
 export function buildFormalTimeline(jsPsych, formalBlocks) {
@@ -48,8 +49,8 @@ export function buildFormalTimeline(jsPsych, formalBlocks) {
         difficulty_rank: row.difficulty_rank,
         alpha: row.alpha,
         label_digit: row.label_digit,
-        label_type: row.label_type,
-        sample_type: row.sample_type,
+        label_type: normalizeLabelType(row.label_type, row.label_digit),
+        sample_type: normalizeLabelType(row.sample_type || row.label_type, row.label_digit),
         image_path: rawImagePath,
         participant: params.participant,
         date: dateStr
