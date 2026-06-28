@@ -14,11 +14,11 @@ export function createParamForm() {
         如果已有实验记录，输入同一编号可跳过预实验。<br>
         已做过正式实验的被试，保持默认 1–11 即可，系统会自动从下一轮继续。
       </p>
-      <label>被试编号: <input type="text" id="participant" value="${participant}" placeholder="S___" autocomplete="off" style="width:120px;"></label>
+       <label>被试编号: <input type="text" id="participant" value="${participant}" placeholder="S___" autocomplete="off" style="width:120px;"></label>
       <label>练习次数: <input type="number" id="practice_count" value="${practiceCount}" min="0" max="80"></label>
       <label>起始组: <input type="number" id="start_group" value="${startGroup}" min="1" max="11"></label>
       <label>结束组: <input type="number" id="end_group" value="${endGroup}" min="1" max="11"></label>
-      <label>上传授权码: <input type="password" id="upload_code" value="${uploadCode}" autocomplete="off"></label>
+      <label>上传授权码: <input type="password" id="upload_code" value="${uploadCode}" placeholder="请询问主试" autocomplete="off"></label>
       <br>
       <button id="start-btn">开始实验</button>
     </div>
