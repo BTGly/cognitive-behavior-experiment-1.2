@@ -327,7 +327,9 @@ async function startExperiment() {
     const practiceImages = practiceTimeline
       .filter(t => typeof t.stimulus === 'string')
       .map(t => t.stimulus)
-    preloadImages(practiceImages)
+    target.innerHTML = '<div class="instruction-text">正在加载练习图片...</div>'
+    const practicePreload = await preloadImages(practiceImages, { timeoutMs: 15000 })
+    console.log('Practice preload:', practicePreload)
     initialTimeline.push(practiceIntro)
     initialTimeline.push(...practiceTimeline)
   }
@@ -336,7 +338,9 @@ async function startExperiment() {
     const pretestImages = pretestTimeline
       .filter(t => typeof t.stimulus === 'string')
       .map(t => t.stimulus)
-    preloadImages(pretestImages)
+    target.innerHTML = '<div class="instruction-text">正在加载预实验图片...</div>'
+    const pretestPreload = await preloadImages(pretestImages, { timeoutMs: 15000 })
+    console.log('Pretest preload:', pretestPreload)
     initialTimeline.push(...pretestIntro)
     initialTimeline.push(...pretestTimeline)
   }
@@ -524,7 +528,9 @@ async function startExperiment() {
           formalImagePaths.add(assetPath(t.image_path))
         }
       }
-      preloadImages([...formalImagePaths])
+      target.innerHTML = '<div class="instruction-text">正在加载正式实验图片...</div>'
+      const formalPreload = await preloadImages([...formalImagePaths], { timeoutMs: 20000 })
+      console.log('Formal preload:', formalPreload)
 
       const formalTrialTimeline = buildFormalTimeline(jsPsych, formalBlocks)
       finalTimeline.push(...formalTrialTimeline)
