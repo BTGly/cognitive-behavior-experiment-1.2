@@ -6,3 +6,8 @@ Thumbs.db
 __pycache__/
 *.pyc
 阿里云服务器信息.md
+出现问题/
+*_experiment_*.zip
+*_raw_data.csv
+*_upload_metadata_recovery.json
+*_calibration_recovery_artifact.json
