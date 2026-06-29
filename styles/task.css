@@ -43,7 +43,7 @@ body {
 .choice-label-right {
   right: 0;
 }
-.stimulus-image {
+.image-stage {
   position: absolute;
   left: 0;
   top: 70px;
@@ -51,6 +51,13 @@ body {
   height: 320px;
   max-width: 80vmin;
   max-height: 80vmin;
+}
+.stimulus-image {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   image-rendering: auto;
   display: block;

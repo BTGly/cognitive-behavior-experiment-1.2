@@ -42,6 +42,7 @@ class HoldResponseTrialPlugin {
       holdDuration: null,
       timeoutId: null,
       holdTimeoutId: null,
+      stimulusOffTimeoutId: null,
       trialEnded: false,
       earlyKeyDown: false,
       responseTimeout: false,
@@ -52,35 +53,41 @@ class HoldResponseTrialPlugin {
     }
 
     const container = document.createElement('div')
-    container.style.cssText = 'width:100vw;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#111;'
+    container.style.cssText = 'position:relative;width:100vw;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#111;'
     display_element.appendChild(container)
 
     const stimulusFrame = document.createElement('div')
     stimulusFrame.className = 'stimulus-frame'
-    stimulusFrame.style.display = 'none'
+    stimulusFrame.style.display = 'block'
     container.appendChild(stimulusFrame)
 
     const labelLeft = document.createElement('div')
     labelLeft.className = 'choice-label choice-label-left'
     labelLeft.textContent = '3'
+    labelLeft.style.display = 'none'
     stimulusFrame.appendChild(labelLeft)
 
     const labelRight = document.createElement('div')
     labelRight.className = 'choice-label choice-label-right'
     labelRight.textContent = '8'
+    labelRight.style.display = 'none'
     stimulusFrame.appendChild(labelRight)
+
+    const imageStage = document.createElement('div')
+    imageStage.className = 'image-stage'
+    stimulusFrame.appendChild(imageStage)
 
     const fixationEl = document.createElement('div')
     fixationEl.className = 'fixation'
     fixationEl.textContent = '+'
-    fixationEl.style.cssText = 'position:absolute;font-size:48px;color:#fff;'
-    container.appendChild(fixationEl)
+    fixationEl.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:48px;color:#fff;z-index:10;pointer-events:none;'
+    imageStage.appendChild(fixationEl)
 
     const imgEl = document.createElement('img')
     imgEl.className = 'stimulus-image'
     imgEl.src = trial.stimulus
     imgEl.style.display = 'none'
-    stimulusFrame.appendChild(imgEl)
+    imageStage.appendChild(imgEl)
 
     this._ensureImageReady(imgEl, 8000).then((status) => {
       state.imageLoadStatus = status
@@ -154,7 +161,8 @@ class HoldResponseTrialPlugin {
   }
 
   _showStimulus(container, fixationEl, stimulusFrame, imgEl, state, trial) {
-    fixationEl.style.display = 'none'
+    stimulusFrame.querySelectorAll('.choice-label').forEach(el => { el.style.display = 'block' })
+    fixationEl.style.display = 'block'
     stimulusFrame.style.display = 'block'
     imgEl.style.display = 'block'
 
@@ -213,8 +221,9 @@ class HoldResponseTrialPlugin {
       }
     }, trial.response_timeout * 1000)
 
-    setTimeout(() => {
+    state.stimulusOffTimeoutId = setTimeout(() => {
       imgEl.style.display = 'none'
+      fixationEl.style.display = 'none'
     }, trial.stimulus_ms)
 
     state.cleanup = () => {
@@ -229,6 +238,7 @@ class HoldResponseTrialPlugin {
 
     clearTimeout(state.timeoutId)
     clearTimeout(state.holdTimeoutId)
+    clearTimeout(state.stimulusOffTimeoutId)
     if (state.cleanup) state.cleanup()
 
     const confidenceHoldS = state.holdDuration !== null

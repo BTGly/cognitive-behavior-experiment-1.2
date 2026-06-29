@@ -1,8 +1,9 @@
 import { loadCSV } from '../csv.js'
 import { conditionPath, assetPath, normalizePath } from '../paths.js'
 import { getDateStr, readFormParams } from '../config.js'
-import { normalizeLabelType } from '../calibration/formal-generator.js'
+import { normalizeLabelType, sampleFixationMs } from '../calibration/formal-generator.js'
 import { pretestBlockFeedbackTimeline } from '../task/feedback.js'
+import { createRNG, seedFromParticipant } from '../random.js'
 import HoldResponseTrialPlugin from '../task/hold-response-trial.js'
 
 export async function buildPretestTimeline(jsPsych) {
@@ -12,6 +13,7 @@ export async function buildPretestTimeline(jsPsych) {
   const manifest = await loadCSV(conditionPath('pilot_manifest.csv'))
   const pretestRecords = []
   const timeline = []
+  const rng = createRNG(seedFromParticipant(params.participant) + 20200)
 
   let globalIndex = 0
 
@@ -25,13 +27,14 @@ export async function buildPretestTimeline(jsPsych) {
     for (const row of groupTrials) {
       const rawImagePath = normalizePath(row.image_path)
       const imageAssetPath = assetPath(rawImagePath)
+      const fixationMs = sampleFixationMs(rng)
 
       const trial = {
         type: HoldResponseTrialPlugin,
         stimulus: imageAssetPath,
         stimulus_ms: 200,
-        fixation_ms: Math.round(parseFloat(row.show_time) * 1000),
-        show_time: parseFloat(row.show_time),
+        fixation_ms: fixationMs,
+        show_time: fixationMs / 1000,
         response_timeout: 2.0,
         max_hold: 1.0,
         phase: 'pretest',

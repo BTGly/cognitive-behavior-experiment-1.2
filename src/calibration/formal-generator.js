@@ -1,6 +1,12 @@
 import { FORMAL_PLAN } from './select-alpha.js'
 import { createRNG } from '../random.js'
 
+export const FIXATION_MS_OPTIONS = [500, 600, 700, 800, 900, 1000]
+
+export function sampleFixationMs(rng) {
+  return FIXATION_MS_OPTIONS[Math.floor(rng.next() * FIXATION_MS_OPTIONS.length)]
+}
+
 function labelTypeFromDigit(labelDigitValue) {
   return parseInt(labelDigitValue) === 3 ? 'normal' : 'defect'
 }
@@ -40,9 +46,8 @@ export function generateFormalTrials(selected, alphaToImages, pretestUsedPaths, 
       throw new Error(`${dname} alpha=${a.toFixed(2)} 抽图不足。需要 ${nNeed}，取到 ${imgs.length}。`)
     }
 
-    const fixationOptions = [500, 600, 700, 800, 900, 1000]
     for (const item of imgs) {
-      const fixationMs = fixationOptions[Math.floor(rng.next() * fixationOptions.length)]
+      const fixationMs = sampleFixationMs(rng)
       formalTrials.push({
         trial_index: globalTrialIndex,
         difficulty_id: dname,
