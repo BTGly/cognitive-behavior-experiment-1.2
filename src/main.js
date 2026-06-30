@@ -85,6 +85,7 @@ async function startExperiment() {
   let pretestRecords = []
   let scheduleSource = 'none'
   let formalScheduleHash = null
+  let completedFormalBlocksToSkip = []
 
   // Check if subject already has calibration + formal schedule on server
   let existingCalibration = null
@@ -160,16 +161,24 @@ async function startExperiment() {
     const completedSet = new Set(progress.completed_blocks || [])
     const hasCompletedProgress = completedSet.size > 0
     const isDefaultFullRange = params.start_group === 1 && params.end_group === 11
+    const autoSkipCompleted = !isTestSubject && isDefaultFullRange && hasCompletedProgress
+    const missingBlocks = []
+    for (let b = 1; b <= 11; b++) {
+      if (!completedSet.has(b)) missingBlocks.push(b)
+    }
 
-    // Auto-resume: default 1-11 with existing progress → advance BEFORE overlap check
-    if (!isTestSubject && isDefaultFullRange && hasCompletedProgress && progress.next_start_group !== null) {
-      params.start_group = progress.next_start_group
+    // Auto-resume: default 1-11 runs all unfinished blocks and skips completed blocks.
+    // This also handles non-contiguous progress, e.g. completed [2] → run [1,3,4...11].
+    if (autoSkipCompleted && missingBlocks.length > 0) {
+      params.start_group = missingBlocks[0]
       params.end_group = 11
+      params.skip_completed_blocks = [...completedSet]
       window.__experimentParams = params
-      console.log(`Auto-resume: starting from block ${params.start_group}`)
+      completedFormalBlocksToSkip = [...completedSet]
+      console.log(`Auto-resume: running unfinished blocks ${missingBlocks.join(',')}, skipping completed ${completedFormalBlocksToSkip.join(',')}`)
       target.innerHTML = `<div class="instruction-text" style="color:#4caf50;">
         <p>检测到该被试已完成 ${[...completedSet].sort((a,b)=>a-b).join('、')} 轮。</p>
-        <p>本次自动从第 ${params.start_group} 轮开始，运行至第 ${params.end_group} 轮。</p>
+        <p>本次自动运行未完成轮次：${missingBlocks.join('、')}。</p>
         <p style="color:#888;font-size:14px;">2 秒后自动继续</p>
       </div>`
       await new Promise(r => setTimeout(r, 2000))
@@ -188,7 +197,7 @@ async function startExperiment() {
 
     if (!isTestSubject) {
       // Check overlap with completed blocks
-      const overlap = requestedRange.filter(b => completedSet.has(b))
+      const overlap = autoSkipCompleted ? [] : requestedRange.filter(b => completedSet.has(b))
       if (overlap.length > 0) {
         const next = progress.next_start_group
         target.innerHTML = `<div class="instruction-text" style="color:#f44336;">
@@ -201,7 +210,7 @@ async function startExperiment() {
       }
 
       // Check skipping blocks
-      if (progress.next_start_group !== null && effectiveRequestedStart > progress.next_start_group) {
+      if (!autoSkipCompleted && progress.next_start_group !== null && effectiveRequestedStart > progress.next_start_group) {
         target.innerHTML = `<div class="instruction-text" style="color:#f44336;">
           <h2>跳块检测</h2>
           <p>该被试下一轮应从第 ${progress.next_start_group} 轮开始。</p>
@@ -532,7 +541,9 @@ async function startExperiment() {
       const formalPreload = await preloadImages([...formalImagePaths], { timeoutMs: 20000 })
       console.log('Formal preload:', formalPreload)
 
-      const formalTrialTimeline = buildFormalTimeline(jsPsych, formalBlocks)
+      const formalTrialTimeline = buildFormalTimeline(jsPsych, formalBlocks, {
+        skipCompletedBlocks: completedFormalBlocksToSkip
+      })
       finalTimeline.push(...formalTrialTimeline)
     }
 

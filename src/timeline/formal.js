@@ -4,7 +4,7 @@ import { assetPath, normalizePath } from '../paths.js'
 import { normalizeLabelType } from '../calibration/formal-generator.js'
 import HoldResponseTrialPlugin from '../task/hold-response-trial.js'
 
-export function buildFormalTimeline(jsPsych, formalBlocks) {
+export function buildFormalTimeline(jsPsych, formalBlocks, options = {}) {
   const params = readFormParams()
   const timeline = []
   const dateStr = getDateStr()
@@ -12,10 +12,11 @@ export function buildFormalTimeline(jsPsych, formalBlocks) {
   const blockIds = Object.keys(formalBlocks).sort((a, b) => parseInt(a) - parseInt(b))
   const startGroup = params.start_group || 1
   const endGroup = params.end_group || 11
+  const skipCompletedBlocks = new Set((options.skipCompletedBlocks || []).map(b => parseInt(b)))
 
   const activeBlockIds = blockIds.filter(id => {
     const n = parseInt(id)
-    return n >= startGroup && n <= endGroup
+    return n >= startGroup && n <= endGroup && !skipCompletedBlocks.has(n)
   })
 
   if (activeBlockIds.length === 0) {

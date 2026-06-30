@@ -2,8 +2,19 @@ export function createParamForm() {
   const externalParams = readExternalParams()
   const participant = escapeAttr(externalParams.participant || '')
   const practiceCount = escapeAttr(externalParams.practice_count || '24')
-  const startGroup = escapeAttr(externalParams.start_group || '1')
-  const endGroup = escapeAttr(externalParams.end_group || '11')
+  const allowGroupOverride = externalParams.allow_group_override === '1' ||
+    /^TEST_/i.test(externalParams.participant || '')
+  const startGroup = escapeAttr(allowGroupOverride ? (externalParams.start_group || '1') : '1')
+  const endGroup = escapeAttr(allowGroupOverride ? (externalParams.end_group || '11') : '11')
+  const groupControls = allowGroupOverride
+    ? `<details style="margin-top:12px;font-size:13px;color:#aaa;">
+        <summary style="cursor:pointer;">主试高级设置</summary>
+        <p style="font-size:12px;color:#888;">仅主试测试/补救时使用。正式被试默认 1–11，由系统按服务器进度续跑。</p>
+        <label>起始组: <input type="number" id="start_group" value="${startGroup}" min="1" max="11"></label>
+        <label>结束组: <input type="number" id="end_group" value="${endGroup}" min="1" max="11"></label>
+      </details>`
+    : `<input type="hidden" id="start_group" value="1">
+       <input type="hidden" id="end_group" value="11">`
 
   const formHtml = `
     <div class="param-form">
@@ -15,13 +26,9 @@ export function createParamForm() {
       </p>
       <label>被试编号: <input type="text" id="participant" value="${participant}" placeholder="如 S001" autocomplete="off" style="width:140px;"></label>
       <label>上传授权码: <input type="password" id="upload_code" value="" placeholder="请询问主试" autocomplete="off"></label>
-      <details style="margin-top:12px;font-size:13px;color:#aaa;">
-        <summary style="cursor:pointer;">主试高级设置</summary>
-        <p style="font-size:12px;color:#888;">已有进度时，默认 1–11 会自动从下一轮继续。</p>
-        <label>练习次数: <input type="number" id="practice_count" value="${practiceCount}" min="0" max="80"></label>
-        <label>起始组: <input type="number" id="start_group" value="${startGroup}" min="1" max="11"></label>
-        <label>结束组: <input type="number" id="end_group" value="${endGroup}" min="1" max="11"></label>
-      </details>
+      <label>练习次数: <input type="number" id="practice_count" value="${practiceCount}" min="0" max="80"></label>
+      <input type="hidden" id="allow_group_override" value="${allowGroupOverride ? '1' : '0'}">
+      ${groupControls}
       <br>
       <button id="start-btn">开始实验</button>
     </div>
@@ -35,6 +42,7 @@ export function readFormParams() {
   const startGroupEl = document.getElementById('start_group')
   const endGroupEl = document.getElementById('end_group')
   const uploadCodeEl = document.getElementById('upload_code')
+  const allowGroupOverrideEl = document.getElementById('allow_group_override')
 
   if (!participantEl && window.__experimentParams) {
     return window.__experimentParams
@@ -49,6 +57,7 @@ export function readFormParams() {
     practice_count: Number.isNaN(practiceCount) ? 24 : practiceCount,
     start_group: Number.isNaN(startGroup) ? 1 : startGroup,
     end_group: Number.isNaN(endGroup) ? 11 : endGroup,
+    allow_group_override: allowGroupOverrideEl?.value === '1',
     run_pretest: 1,  // 预实验强制必做，不可跳过
     upload_code: uploadCodeEl?.value.trim() || ''
   }
@@ -70,6 +79,11 @@ export function validateParams(params) {
   if (!Number.isInteger(sg) || !Number.isInteger(eg) ||
       sg < 1 || eg > 11 || sg > eg) {
     errors.push('起始组/结束组必须满足 1 ≤ 起始组 ≤ 结束组 ≤ 11。')
+  }
+  if (/^S\d{3}$/.test(params.participant) &&
+      !params.allow_group_override &&
+      (sg !== 1 || eg !== 11)) {
+    errors.push('正式被试不能手动设置起始组/结束组。请保持默认 1–11，由系统按服务器进度自动续跑。')
   }
 
   const pc = params.practice_count
