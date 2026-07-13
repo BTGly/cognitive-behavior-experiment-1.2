@@ -1,8 +1,11 @@
+import csv
 import hashlib
+import io
 import json
 import os
 import re
 import sqlite3
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -15,6 +18,23 @@ DATA_DIR = Path('/opt/blur-exp/data')
 STORAGE_DIR = Path('/opt/blur-exp/storage')
 DB_PATH = DATA_DIR / 'experiment.sqlite3'
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+MAX_RAW_CSV_BYTES = 20 * 1024 * 1024
+PRETEST_BLOCKS = 3
+PRETEST_TRIALS_PER_BLOCK = 60
+
+PRETEST_RESUME_FIELDS = [
+    'participant', 'date', 'phase', 'trial_index', 'block_id', 'trial_in_block',
+    'difficulty_id', 'difficulty_rank', 'alpha', 'label_digit', 'label_type',
+    'sample_type', 'show_time', 'fixation_ms', 'stimulus_ms', 'image_path',
+    'choice_key', 'choice_digit', 'manual_accuracy', 'decision_rt',
+    'hold_duration', 'confidence_hold_s', 'confidence_rating_formal',
+    'confidence_bin_3level', 'valid_response', 'response_timeout',
+    'early_key_down_at_start', 'image_load_status', 'image_load_error',
+    'image_load_timeout', 'experiment_version', 'fullscreen_active',
+    'screen_width_px', 'screen_height_px', 'viewport_width_px',
+    'viewport_height_px', 'device_pixel_ratio', 'browser_user_agent',
+    'stimulus_rendered_width_px', 'stimulus_rendered_height_px',
+]
 
 ALLOWED_ORIGINS = [
     'https://btgly.github.io',
@@ -141,6 +161,63 @@ def _compute_blocks_hash(blocks: dict) -> str:
     """Compute SHA-256 of stable-stringified formalBlocks."""
     stable = _stable_stringify(blocks)
     return hashlib.sha256(stable.encode('utf-8')).hexdigest()
+
+
+def _parse_int(value):
+    try:
+        return int(float(str(value).strip()))
+    except (TypeError, ValueError):
+        return None
+
+
+def _read_pretest_blocks(zip_path: Path, subject_id: str) -> dict:
+    """Return complete and partial pretest blocks found in one uploaded ZIP."""
+    result = {'complete': {}, 'counts': {}}
+    if not zip_path.is_file():
+        return result
+
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            raw_entries = [
+                info for info in archive.infolist()
+                if not info.is_dir() and info.filename.lower().endswith('_raw_data.csv')
+            ]
+            if len(raw_entries) != 1:
+                return result
+            raw_entry = raw_entries[0]
+            if raw_entry.file_size > MAX_RAW_CSV_BYTES:
+                return result
+
+            rows_by_block = {b: {} for b in range(1, PRETEST_BLOCKS + 1)}
+            row_counts = {b: 0 for b in range(1, PRETEST_BLOCKS + 1)}
+            with archive.open(raw_entry) as raw_file:
+                text_file = io.TextIOWrapper(raw_file, encoding='utf-8-sig', newline='')
+                for row in csv.DictReader(text_file):
+                    if str(row.get('phase', '')).strip().lower() != 'pretest':
+                        continue
+                    if safe_id(row.get('participant', '')) != subject_id:
+                        continue
+                    block_id = _parse_int(row.get('block_id'))
+                    trial_in_block = _parse_int(row.get('trial_in_block'))
+                    if block_id not in rows_by_block:
+                        continue
+                    if trial_in_block is None or not 1 <= trial_in_block <= PRETEST_TRIALS_PER_BLOCK:
+                        continue
+                    row_counts[block_id] += 1
+                    cleaned = {field: row.get(field, '') for field in PRETEST_RESUME_FIELDS}
+                    cleaned['block_id'] = block_id
+                    cleaned['trial_in_block'] = trial_in_block
+                    rows_by_block[block_id][trial_in_block] = cleaned
+
+            expected_trials = set(range(1, PRETEST_TRIALS_PER_BLOCK + 1))
+            for block_id, trials in rows_by_block.items():
+                result['counts'][block_id] = len(trials)
+                if row_counts[block_id] == PRETEST_TRIALS_PER_BLOCK and set(trials) == expected_trials:
+                    result['complete'][block_id] = [trials[t] for t in sorted(trials)]
+    except (OSError, UnicodeError, csv.Error, zipfile.BadZipFile, RuntimeError):
+        return result
+
+    return result
 
 
 def _validate_formal_schedule(body: dict) -> None:
@@ -326,6 +403,82 @@ def get_progress(
         'progress_conflict': progress_conflict,
         'hashes': sorted(hashes),
         'sessions': sessions,
+    }
+
+
+@app.get('/api/subject/{subject_id}/pretest-resume')
+def get_pretest_resume(
+    subject_id: str,
+    x_upload_token: str | None = Header(default=None),
+):
+    """Recover only complete 60-trial pretest blocks from uploaded sessions."""
+    _verify_auth(x_upload_token)
+    sid = safe_id(subject_id)
+
+    if _calibration_path(sid).exists():
+        return {
+            'subject_id': sid,
+            'can_resume': False,
+            'reason': 'calibration_already_exists',
+            'completed_blocks': [],
+            'next_block': None,
+            'records': [],
+            'source_sessions': [],
+            'discarded_partial_blocks': {},
+        }
+
+    with sqlite3.connect(DB_PATH) as conn:
+        sessions = conn.execute(
+            """
+            SELECT session_id, zip_path, uploaded_at
+            FROM experiment_sessions
+            WHERE subject_id = ?
+            ORDER BY uploaded_at DESC, id DESC
+            """,
+            (sid,),
+        ).fetchall()
+
+    recovered = {}
+    source_by_block = {}
+    partial_counts = {}
+
+    for session_id, zip_path, _uploaded_at in sessions:
+        parsed = _read_pretest_blocks(Path(zip_path), sid)
+        for block_id, count in parsed['counts'].items():
+            partial_counts[block_id] = max(partial_counts.get(block_id, 0), count)
+        for block_id, records in parsed['complete'].items():
+            if block_id not in recovered:
+                recovered[block_id] = records
+                source_by_block[block_id] = session_id
+
+    completed_blocks = sorted(recovered)
+    records = [
+        record
+        for block_id in completed_blocks
+        for record in recovered[block_id]
+    ]
+    missing_blocks = [
+        block_id for block_id in range(1, PRETEST_BLOCKS + 1)
+        if block_id not in recovered
+    ]
+    discarded_partial = {
+        str(block_id): count
+        for block_id, count in sorted(partial_counts.items())
+        if block_id not in recovered and count > 0
+    }
+
+    return {
+        'subject_id': sid,
+        'can_resume': bool(completed_blocks),
+        'reason': 'complete_blocks_found' if completed_blocks else 'no_complete_blocks',
+        'completed_blocks': completed_blocks,
+        'next_block': missing_blocks[0] if missing_blocks else None,
+        'records': records,
+        'source_sessions': sorted(set(source_by_block.values())),
+        'source_session_by_block': {
+            str(block_id): source_by_block[block_id] for block_id in completed_blocks
+        },
+        'discarded_partial_blocks': discarded_partial,
     }
 
 

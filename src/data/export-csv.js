@@ -34,6 +34,12 @@ export async function buildAllDataZip(subjectId, rawData, summaries, config) {
     ))
   }
 
+  if (summaries.pretestResume && summaries.combinedPretestRecords?.length > 0) {
+    zip.file(`${subjectId}_pretest_combined_for_calibration.csv`, '\uFEFF' + generateCSV(
+      summaries.combinedPretestRecords, RAW_DATA_FIELDS
+    ))
+  }
+
   if (summaries.calibrationSummary) {
     zip.file(`${subjectId}_calibration_summary.csv`, '\uFEFF' + generateCSV(
       summaries.calibrationSummary, CALIBRATION_SUMMARY_FIELDS
@@ -67,6 +73,7 @@ export async function buildAllDataZip(subjectId, rawData, summaries, config) {
     completed_blocks: summaries.completedBlocks || [],
     partial_blocks: summaries.partialBlocks || [],
     formal_block_counts: summaries.formalBlockCounts || {},
+    pretest_resume: summaries.pretestResume || null,
     generated_at: dateStr
   }
   zip.file(`${subjectId}_formal_schedule_source.json`, JSON.stringify(provenance, null, 2))

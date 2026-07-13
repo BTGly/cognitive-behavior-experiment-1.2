@@ -6,12 +6,13 @@ import { pretestBlockFeedbackTimeline } from '../task/feedback.js'
 import { createRNG, seedFromParticipant } from '../random.js'
 import HoldResponseTrialPlugin from '../task/hold-response-trial.js'
 
-export async function buildPretestTimeline(jsPsych) {
+export async function buildPretestTimeline(jsPsych, options = {}) {
   const params = readFormParams()
   if (!params.run_pretest) return { timeline: [], pretestRecords: [] }
 
   const manifest = await loadCSV(conditionPath('pilot_manifest.csv'))
-  const pretestRecords = []
+  const completedBlocks = new Set((options.completedBlocks || []).map(Number))
+  const pretestRecords = [...(options.resumeRecords || [])]
   const timeline = []
   const rng = createRNG(seedFromParticipant(params.participant) + 20200)
 
@@ -23,6 +24,12 @@ export async function buildPretestTimeline(jsPsych) {
     const groupRow = manifest[groupIndex]
     const csvPath = 'assets/' + groupRow.csv_path
     const groupTrials = await loadCSV(csvPath)
+    const blockId = parseInt(groupRow.group_id) + 1
+
+    if (completedBlocks.has(blockId)) {
+      globalIndex += groupTrials.length
+      continue
+    }
 
     for (const row of groupTrials) {
       const rawImagePath = normalizePath(row.image_path)
@@ -39,7 +46,7 @@ export async function buildPretestTimeline(jsPsych) {
         max_hold: 1.0,
         phase: 'pretest',
         trial_index: globalIndex,
-        block_id: parseInt(groupRow.group_id) + 1,
+        block_id: blockId,
         trial_in_block: parseInt(row.trial_in_group) + 1,
         difficulty_id: '',
         difficulty_rank: 0,

@@ -16,13 +16,13 @@ import { RAW_DATA_FIELDS } from './data/schemas.js'
 
 import {
   createWelcomeTimeline, practiceIntroTimeline,
-  pretestIntroTimeline, formalIntroTimeline, endingTimeline
+  pretestIntroTimeline, pretestResumeIntroTimeline, formalIntroTimeline, endingTimeline
 } from './timeline/welcome.js'
 import { buildPracticeTimeline } from './timeline/practice.js'
 import { buildPretestTimeline } from './timeline/pretest.js'
 import { buildFormalTimeline } from './timeline/formal.js'
 
-const EXPERIMENT_VERSION = 'web-fixedquota-p8-0-16-34-66-84-100-size32-practice-random-pool17600-v5'
+const EXPERIMENT_VERSION = 'web-fixedquota-p8-0-16-34-66-84-100-size32-practice-random-pool17600-v6-pretest-resume'
 window.__EXPERIMENT_VERSION = EXPERIMENT_VERSION
 
 // ---- Calibration v2 helpers ----
@@ -97,6 +97,7 @@ async function startExperiment() {
   let scheduleSource = 'none'
   let formalScheduleHash = null
   let completedFormalBlocksToSkip = []
+  let pretestResume = null
 
   // Check if subject already has calibration + formal schedule on server
   let existingCalibration = null
@@ -131,6 +132,21 @@ async function startExperiment() {
       btn.onclick = () => location.reload()
       target.querySelector('.instruction-text')?.appendChild(document.createElement('br'))
       target.querySelector('.instruction-text')?.appendChild(btn)
+      return
+    }
+  }
+
+  // Recover only server-verified complete pretest blocks when calibration does not yet exist.
+  if (!scheduleFromServer && params.upload_code) {
+    try {
+      const resume = await fetchPretestResume(params.participant, params.upload_code)
+      if (resume?.can_resume) pretestResume = resume
+    } catch (err) {
+      target.innerHTML = `<div class="instruction-text" style="color:#f44336;">
+        <h2>预实验进度检查失败</h2>
+        <p>${escapeHtml(err.message)}</p>
+        <p style="color:#888;font-size:14px;">为避免重复或混用预实验数据，本次没有继续。请稍后刷新重试。</p>
+      </div>`
       return
     }
   }
@@ -278,6 +294,7 @@ async function startExperiment() {
       startGroup: params.start_group,
       endGroup: params.end_group,
       formalScheduleHash,
+      pretestResume,
       completedBlocks: [],
       partialBlocks: [],
       formalBlockCounts: {}
@@ -332,7 +349,7 @@ async function startExperiment() {
   const practiceIntro = practiceIntroTimeline()
   const pretestIntro = pretestIntroTimeline()
 
-  const practiceTimeline = await buildPracticeTimeline(jsPsych)
+  const practiceTimeline = pretestResume ? [] : await buildPracticeTimeline(jsPsych)
 
   // Build pretest only if no stored formal schedule
   let pretestTimeline = []
@@ -340,7 +357,10 @@ async function startExperiment() {
     console.log('Skipping pretest — using stored formal schedule')
     pretestRecords = []
   } else {
-    const pretestResult = await buildPretestTimeline(jsPsych)
+    const pretestResult = await buildPretestTimeline(jsPsych, {
+      completedBlocks: pretestResume?.completed_blocks || [],
+      resumeRecords: pretestResume?.records || []
+    })
     pretestTimeline = pretestResult.timeline
     pretestRecords = pretestResult.pretestRecords
   }
@@ -365,8 +385,11 @@ async function startExperiment() {
     target.innerHTML = '<div class="instruction-text">正在加载预实验图片...</div>'
     const pretestPreload = await preloadImages(pretestImages, { timeoutMs: 15000 })
     console.log('Pretest preload:', pretestPreload)
-    initialTimeline.push(...pretestIntro)
+    if (pretestResume) initialTimeline.push(pretestResumeIntroTimeline(pretestResume))
+    else initialTimeline.push(...pretestIntro)
     initialTimeline.push(...pretestTimeline)
+  } else if (pretestResume && pretestRecords.length > 0) {
+    initialTimeline.push(pretestResumeIntroTimeline(pretestResume))
   }
 
   async function runFormalPhase() {
@@ -380,7 +403,8 @@ async function startExperiment() {
       // === FIRST RUN: pretest → calibrate → build schedule → upload ===
       const pretestSummary = computePretestAlphaSummary(pretestRecords)
       pretestAlphaSummaryRows = pretestSummary.summaryRows
-      const { valid } = verifyPretestRecords(pretestRecords)
+      const verification = verifyPretestRecords(pretestRecords)
+      const { valid } = verification
 
       if (valid && Object.keys(pretestSummary.alphaCounts).length >= 6) {
         const { mu, sigma, nll } = fitLogisticGrid(pretestSummary.alphaCounts)
@@ -425,7 +449,8 @@ async function startExperiment() {
             scheduleSource: 'qc_fail',
             startGroup: params.start_group,
             endGroup: params.end_group,
-            formalScheduleHash: null
+            formalScheduleHash: null,
+            pretestResume
           }
           target.innerHTML = `<div class="instruction-text" style="color:#f44336;">
             <h2>校准质量过低</h2>
@@ -469,7 +494,13 @@ async function startExperiment() {
                 created_at: new Date().toISOString(),
                 device_info: collectDeviceInfo(),
                 requested_start_group: params.start_group,
-                requested_end_group: params.end_group
+                requested_end_group: params.end_group,
+                pretest_resume: pretestResume ? {
+                  completed_blocks: pretestResume.completed_blocks,
+                  source_sessions: pretestResume.source_sessions,
+                  source_session_by_block: pretestResume.source_session_by_block,
+                  discarded_partial_blocks: pretestResume.discarded_partial_blocks
+                } : null
               }
             }
           }
@@ -513,7 +544,8 @@ async function startExperiment() {
         console.warn('Pretest invalid, skipping formal experiment')
         target.innerHTML = `<div class="instruction-text">
           <h2>预实验数据不足</h2>
-          <p>预实验结果未能产生足够的有效数据（需要至少6个不同的模糊等级）。</p>
+          <p>必须完成 3 组预实验，每组 60 题，并覆盖至少 6 个模糊等级。</p>
+          <p style="color:#888;font-size:14px;">检查结果：${escapeHtml(verification.msg)}</p>
           <p>无法生成个性化的正式实验参数。</p>
           <p>请刷新页面重新开始，并在预实验中认真完成每个试次。</p>
           <p style="color:#888;font-size:14px;">（按 Esc 或关闭全屏可退出）</p>
@@ -572,7 +604,8 @@ async function startExperiment() {
       scheduleSource,
       startGroup: params.start_group,
       endGroup: params.end_group,
-      formalScheduleHash
+      formalScheduleHash,
+      pretestResume
     }
 
     finalTimeline.push(endingTimeline(() => {
@@ -644,6 +677,8 @@ function triggerDownload(jsPsych, abortInfo = null) {
       startGroup: collector.startGroup || params.start_group,
       endGroup: collector.endGroup || params.end_group,
       formalScheduleHash: collector.formalScheduleHash || null,
+      pretestResume: collector.pretestResume || null,
+      combinedPretestRecords: collector.pretestRecords || [],
       completedBlocks: progress.completed_blocks,
       partialBlocks: progress.partial_blocks,
       formalBlockCounts: progress.formal_block_counts
@@ -832,4 +867,22 @@ async function fetchStoredProgress(subjectId, uploadCode) {
     console.warn('Progress fetch error:', err)
     return null
   }
+}
+
+async function fetchPretestResume(subjectId, uploadCode) {
+  const url = `${getCalibrationApiBase()}/api/subject/${encodeURIComponent(subjectId)}/pretest-resume`
+  const headers = uploadCode ? { 'X-Upload-Token': uploadCode } : {}
+  let resp
+  try {
+    resp = await fetch(url, { headers })
+  } catch (err) {
+    throw new Error(`无法连接服务器检查预实验进度：${err.message}`)
+  }
+  if (resp.status === 401) {
+    throw new Error('上传授权码错误，请检查后重新输入。')
+  }
+  if (!resp.ok) {
+    throw new Error(`预实验进度查询失败（${resp.status}），请稍后重试。`)
+  }
+  return await resp.json()
 }

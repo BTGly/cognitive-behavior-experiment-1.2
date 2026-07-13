@@ -62,6 +62,25 @@ export function pretestIntroTimeline() {
   ]
 }
 
+export function pretestResumeIntroTimeline(resume) {
+  const completed = (resume?.completed_blocks || []).join('、')
+  const nextBlock = resume?.next_block
+  const partialCount = parseInt(resume?.discarded_partial_blocks?.[String(nextBlock)] || 0)
+  const discardedText = partialCount > 0
+    ? `\n\n上次第 ${nextBlock} 组未完成的 ${partialCount} 题不会计入结果，本次将整组重新开始。`
+    : ''
+  const nextText = nextBlock
+    ? `本次将从预实验第 ${nextBlock} 组开始。`
+    : '三组预实验均已恢复，本次将直接生成正式实验排程。'
+
+  return {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: textScreen(`预实验进度已恢复\n\n服务器已恢复完成的预实验组：${completed || '无'}。\n${nextText}${discardedText}\n\n请按 Enter 继续。`),
+    choices: ['Enter'],
+    response_ends_trial: true
+  }
+}
+
 export function formalIntroTimeline() {
   return [
     {
