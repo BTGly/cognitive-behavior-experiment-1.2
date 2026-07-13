@@ -22,7 +22,7 @@ import { buildPracticeTimeline } from './timeline/practice.js'
 import { buildPretestTimeline } from './timeline/pretest.js'
 import { buildFormalTimeline } from './timeline/formal.js'
 
-const EXPERIMENT_VERSION = 'web-fixedquota-p8-0-20-34-66-80-100-size32-practice-random-v3'
+const EXPERIMENT_VERSION = 'web-fixedquota-p8-0-16-34-66-84-100-size32-practice-random-pool15800-v4'
 window.__EXPERIMENT_VERSION = EXPERIMENT_VERSION
 
 // ---- Calibration v2 helpers ----

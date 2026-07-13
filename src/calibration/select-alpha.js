@@ -3,19 +3,19 @@ import { logisticP8, invLogisticAlpha } from './logistic.js'
 export const FORMAL_PLAN = [
   // Every difficulty is selected from the participant's pretest curve.
   { difficulty_id: 'D1', target_p8: 0.00, n_trials: 82,  label_digit: 3, selection_mode: 'target_p8' },
-  { difficulty_id: 'D2', target_p8: 0.20, n_trials: 165, label_digit: 3, selection_mode: 'target_p8' },
+  { difficulty_id: 'D2', target_p8: 0.16, n_trials: 165, label_digit: 3, selection_mode: 'target_p8' },
   { difficulty_id: 'D3', target_p8: 0.34, n_trials: 578, label_digit: 3, selection_mode: 'target_p8' },
   { difficulty_id: 'D4', target_p8: 0.66, n_trials: 209, label_digit: 8, selection_mode: 'target_p8' },
-  { difficulty_id: 'D5', target_p8: 0.80, n_trials: 38,  label_digit: 8, selection_mode: 'target_p8' },
+  { difficulty_id: 'D5', target_p8: 0.84, n_trials: 38,  label_digit: 8, selection_mode: 'target_p8' },
   { difficulty_id: 'D6', target_p8: 1.00, n_trials: 28,  label_digit: 8, selection_mode: 'target_p8' }
 ]
 
 export const P8_WINDOWS = {
   D1: [0.00, 0.18],
-  D2: [0.12, 0.28],
+  D2: [0.08, 0.24],
   D3: [0.26, 0.42],
   D4: [0.56, 0.74],
-  D5: [0.68, 0.82],
+  D5: [0.76, 0.92],
   D6: [0.82, 1.00]
 }
 
