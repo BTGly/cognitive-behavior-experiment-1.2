@@ -12,11 +12,10 @@ export async function buildPracticeTimeline(jsPsych) {
   if (practiceCount <= 0) return []
 
   const allRows = await loadCSV(conditionPath('practice_data.csv'))
-  const rows = allRows.slice(0, practiceCount)
-
-  // Shuffle practice trials deterministically per subject
   const rng = createRNG(seedFromParticipant(params.participant) + 9999)
-  const shuffled = rng.shuffle(rows)
+  // Sample without replacement from the full pool; the subject seed keeps it auditable.
+  const shuffled = rng.shuffle(allRows).slice(0, practiceCount)
+  const actualPracticeCount = shuffled.length
 
   const timeline = []
   const practiceState = { points: 0 }
@@ -51,10 +50,10 @@ export async function buildPracticeTimeline(jsPsych) {
     }
 
     timeline.push(trial)
-    timeline.push(practiceFeedbackTimeline(jsPsych, practiceState, practiceCount))
+    timeline.push(practiceFeedbackTimeline(jsPsych, practiceState, actualPracticeCount))
   }
 
-  timeline.push(practiceEndTimeline(practiceState, practiceCount, params.run_pretest === 1))
+  timeline.push(practiceEndTimeline(practiceState, actualPracticeCount, params.run_pretest === 1))
 
   return timeline
 }
