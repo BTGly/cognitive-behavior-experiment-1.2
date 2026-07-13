@@ -8,8 +8,8 @@ body {
   user-select: none;
 }
 :root {
-  /* On a landscape screen, 50vmin matches PsychoPy's 0.5-height image size. */
-  --stimulus-size: min(50vmin, 80vw);
+  /* Keep stimuli close to the legacy desktop size across common displays. */
+  --stimulus-size: clamp(280px, 32vmin, 380px);
 }
 #jspsych-target {
   width: 100vw;
