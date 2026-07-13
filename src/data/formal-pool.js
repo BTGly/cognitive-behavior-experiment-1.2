@@ -2,7 +2,7 @@ import { loadCSV } from '../csv.js'
 import { normalizePath } from '../paths.js'
 
 export async function loadFormalImagePool(pretestUsedPaths) {
-  const masterManifest = await loadCSV('assets/stimuli_master_pool/manifest.csv?v=20260713-pool15800')
+  const masterManifest = await loadCSV('assets/stimuli_master_pool/manifest.csv?v=20260713-pool17600')
   const alphaToImages = {}
   for (const row of masterManifest) {
     const a = parseFloat(parseFloat(row.alpha).toFixed(2))
