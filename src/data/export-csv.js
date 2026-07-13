@@ -63,6 +63,7 @@ export async function buildAllDataZip(subjectId, rawData, summaries, config) {
     start_group: summaries.startGroup || null,
     end_group: summaries.endGroup || null,
     formal_schedule_hash: summaries.formalScheduleHash || null,
+    experiment_version: config.experimentVersion || 'unknown',
     completed_blocks: summaries.completedBlocks || [],
     partial_blocks: summaries.partialBlocks || [],
     formal_block_counts: summaries.formalBlockCounts || {},

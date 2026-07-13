@@ -91,15 +91,38 @@ export function splitBlocks(formalTrials, nBlocks, blockSize, seed) {
     throw new Error(`正式 trial 总数错误：${formalTrials.length}，应为 ${nBlocks * blockSize}。`)
   }
 
-  // 全局随机后直接切 block，不做分层均衡
-  const shuffled = rng.shuffle(formalTrials)
+  const quotaForBlock = (blockId) => blockId <= 5
+    ? { D1: 8, D2: 15, D3: 52, D4: 19, D5: 4, D6: 2 }
+    : { D1: 7, D2: 15, D3: 53, D4: 19, D5: 3, D6: 3 }
+
+  // Keep every block at the original 75:25 label ratio and near-identical difficulty mix.
+  const trialsByDifficulty = {}
+  for (const trial of formalTrials) {
+    if (!trialsByDifficulty[trial.difficulty_id]) trialsByDifficulty[trial.difficulty_id] = []
+    trialsByDifficulty[trial.difficulty_id].push(trial)
+  }
+  for (const dname of Object.keys(trialsByDifficulty)) {
+    trialsByDifficulty[dname] = rng.shuffle(trialsByDifficulty[dname])
+  }
+  const difficultyOffsets = { D1: 0, D2: 0, D3: 0, D4: 0, D5: 0, D6: 0 }
 
   const blockDistributionRows = []
   const formalBlocks = {}
 
   let globalTrialIndex = 1
   for (let b = 1; b <= nBlocks; b++) {
-    const blockTrials = shuffled.slice((b - 1) * blockSize, b * blockSize)
+    const quota = quotaForBlock(b)
+    const blockTrials = []
+    for (const [dname, nNeed] of Object.entries(quota)) {
+      const start = difficultyOffsets[dname]
+      const end = start + nNeed
+      const selectedRows = (trialsByDifficulty[dname] || []).slice(start, end)
+      if (selectedRows.length !== nNeed) {
+        throw new Error(`Block ${b} 的 ${dname} 数量不足：需要 ${nNeed}，取到 ${selectedRows.length}。`)
+      }
+      difficultyOffsets[dname] = end
+      blockTrials.push(...selectedRows)
+    }
     if (blockTrials.length !== blockSize) {
       throw new Error(`Block ${b} trial 数错误：${blockTrials.length}，应为 ${blockSize}。`)
     }
@@ -139,6 +162,11 @@ export function splitBlocks(formalTrials, nBlocks, blockSize, seed) {
   const totalDefect = blockDistributionRows.reduce((s, r) => s + r.defect_n, 0)
   if (totalNormal + totalDefect !== nBlocks * blockSize) {
     throw new Error('总体 label 数量错误。')
+  }
+  for (const [dname, rows] of Object.entries(trialsByDifficulty)) {
+    if (difficultyOffsets[dname] !== rows.length) {
+      throw new Error(`${dname} 未被完整分配：已分配 ${difficultyOffsets[dname]}，总计 ${rows.length}。`)
+    }
   }
 
   return { formalBlocks, blockDistributionRows }

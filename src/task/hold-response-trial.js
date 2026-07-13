@@ -1,5 +1,18 @@
 const ParameterType = window.jsPsychModule?.ParameterType || window.jsPsych?.ParameterType
 
+function getDeviceSnapshot() {
+  return {
+    experiment_version: window.__EXPERIMENT_VERSION || 'unknown',
+    fullscreen_active: document.fullscreenElement ? 1 : 0,
+    screen_width_px: window.screen?.width || null,
+    screen_height_px: window.screen?.height || null,
+    viewport_width_px: window.innerWidth || null,
+    viewport_height_px: window.innerHeight || null,
+    device_pixel_ratio: window.devicePixelRatio || null,
+    browser_user_agent: navigator.userAgent || ''
+  }
+}
+
 const info = {
   name: 'hold-response-trial',
   version: '1.0.0',
@@ -49,7 +62,9 @@ class HoldResponseTrialPlugin {
       validResponse: false,
       choiceKey: null,
       choiceDigit: null,
-      imageLoadStatus: 'pending'
+      imageLoadStatus: 'pending',
+      stimulusWidthPx: null,
+      stimulusHeightPx: null
     }
 
     const container = document.createElement('div')
@@ -165,6 +180,9 @@ class HoldResponseTrialPlugin {
     fixationEl.style.display = 'block'
     stimulusFrame.style.display = 'block'
     imgEl.style.display = 'block'
+    const stimulusRect = imgEl.getBoundingClientRect()
+    state.stimulusWidthPx = Math.round(stimulusRect.width)
+    state.stimulusHeightPx = Math.round(stimulusRect.height)
 
     const stimOnset = performance.now()
     state.stimulusOnsetTime = stimOnset
@@ -283,7 +301,10 @@ class HoldResponseTrialPlugin {
       early_key_down_at_start: state.earlyKeyDown ? 1 : 0,
       image_load_status: state.imageLoadStatus,
       image_load_error: state.imageLoadStatus === 'error' ? 1 : 0,
-      image_load_timeout: state.imageLoadStatus === 'timeout' ? 1 : 0
+      image_load_timeout: state.imageLoadStatus === 'timeout' ? 1 : 0,
+      ...getDeviceSnapshot(),
+      stimulus_rendered_width_px: state.stimulusWidthPx,
+      stimulus_rendered_height_px: state.stimulusHeightPx
     }
 
     if (container.parentNode) {

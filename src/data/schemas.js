@@ -6,7 +6,11 @@ export const RAW_DATA_FIELDS = [
   'hold_duration', 'confidence_hold_s', 'confidence_rating_formal',
   'confidence_bin_3level', 'valid_response', 'response_timeout',
   'early_key_down_at_start', 'image_load_status', 'image_load_error',
-  'image_load_timeout', 'abort_reason', 'abort_time'
+  'image_load_timeout', 'experiment_version', 'fullscreen_active',
+  'screen_width_px', 'screen_height_px', 'viewport_width_px', 'viewport_height_px',
+  'device_pixel_ratio', 'browser_user_agent',
+  'stimulus_rendered_width_px', 'stimulus_rendered_height_px',
+  'abort_reason', 'abort_time'
 ]
 
 export const PRETEST_ALPHA_SUMMARY_FIELDS = [

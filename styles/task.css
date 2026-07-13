@@ -7,6 +7,10 @@ body {
   overflow: hidden;
   user-select: none;
 }
+:root {
+  /* On a landscape screen, 50vmin matches PsychoPy's 0.5-height image size. */
+  --stimulus-size: min(50vmin, 80vw);
+}
 #jspsych-target {
   width: 100vw;
   height: 100vh;
@@ -23,10 +27,8 @@ body {
 }
 .stimulus-frame {
   position: relative;
-  width: 320px;
-  height: 390px;
-  max-width: 80vmin;
-  max-height: 86vmin;
+  width: var(--stimulus-size);
+  height: calc(var(--stimulus-size) + 70px);
   margin: 0 auto;
 }
 .choice-label {
@@ -47,10 +49,8 @@ body {
   position: absolute;
   left: 0;
   top: 70px;
-  width: 320px;
-  height: 320px;
-  max-width: 80vmin;
-  max-height: 80vmin;
+  width: var(--stimulus-size);
+  height: var(--stimulus-size);
 }
 .stimulus-image {
   position: absolute;

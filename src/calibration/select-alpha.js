@@ -1,19 +1,20 @@
 import { logisticP8, invLogisticAlpha } from './logistic.js'
 
 export const FORMAL_PLAN = [
-  { difficulty_id: 'D1', target_p8: 0.05, n_trials: 82,  label_digit: 3, selection_mode: 'fixed_anchor', anchor_alphas: [0.10, 0.00] },
-  { difficulty_id: 'D2', target_p8: 0.25, n_trials: 165, label_digit: 3, selection_mode: 'target_p8' },
-  { difficulty_id: 'D3', target_p8: 0.45, n_trials: 578, label_digit: 3, selection_mode: 'target_p8' },
-  { difficulty_id: 'D4', target_p8: 0.60, n_trials: 209, label_digit: 8, selection_mode: 'target_p8' },
+  // Every difficulty is selected from the participant's pretest curve.
+  { difficulty_id: 'D1', target_p8: 0.00, n_trials: 82,  label_digit: 3, selection_mode: 'target_p8' },
+  { difficulty_id: 'D2', target_p8: 0.20, n_trials: 165, label_digit: 3, selection_mode: 'target_p8' },
+  { difficulty_id: 'D3', target_p8: 0.34, n_trials: 578, label_digit: 3, selection_mode: 'target_p8' },
+  { difficulty_id: 'D4', target_p8: 0.66, n_trials: 209, label_digit: 8, selection_mode: 'target_p8' },
   { difficulty_id: 'D5', target_p8: 0.80, n_trials: 38,  label_digit: 8, selection_mode: 'target_p8' },
-  { difficulty_id: 'D6', target_p8: 0.95, n_trials: 28,  label_digit: 8, selection_mode: 'fixed_anchor', anchor_alphas: [0.90, 1.00] }
+  { difficulty_id: 'D6', target_p8: 1.00, n_trials: 28,  label_digit: 8, selection_mode: 'target_p8' }
 ]
 
 export const P8_WINDOWS = {
   D1: [0.00, 0.18],
-  D2: [0.18, 0.32],
-  D3: [0.36, 0.52],
-  D4: [0.48, 0.64],
+  D2: [0.12, 0.28],
+  D3: [0.26, 0.42],
+  D4: [0.56, 0.74],
   D5: [0.68, 0.82],
   D6: [0.82, 1.00]
 }

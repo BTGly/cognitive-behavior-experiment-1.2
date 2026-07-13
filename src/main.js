@@ -22,6 +22,9 @@ import { buildPracticeTimeline } from './timeline/practice.js'
 import { buildPretestTimeline } from './timeline/pretest.js'
 import { buildFormalTimeline } from './timeline/formal.js'
 
+const EXPERIMENT_VERSION = 'web-fixedquota-p8-0-20-34-66-80-100-v1'
+window.__EXPERIMENT_VERSION = EXPERIMENT_VERSION
+
 // ---- Calibration v2 helpers ----
 
 function hasV2FormalSchedule(cache) {
@@ -72,6 +75,14 @@ async function startExperiment() {
   }
 
   const fullscreenWasRequested = await requestFullscreen()
+  if (!fullscreenWasRequested) {
+    target.innerHTML = `<div class="instruction-text" style="color:#f44336;">
+      <h2>需要全屏模式</h2>
+      <p>为保证图片呈现尺寸一致，本实验必须在全屏模式下进行。</p>
+      <p>请允许浏览器进入全屏后，刷新页面重新开始。</p>
+    </div>`
+    return
+  }
 
   let downloadTriggered = false
   let runPhase = 'initial'
@@ -240,6 +251,10 @@ async function startExperiment() {
         safeTriggerDownload()
       }
     }
+  })
+  jsPsych.data.addProperties({
+    experiment_version: EXPERIMENT_VERSION,
+    ...collectDeviceInfo()
   })
   const safeTriggerDownload = () => {
     if (downloadTriggered) return
@@ -449,9 +464,10 @@ async function startExperiment() {
               formal_schedule: formalSchedule,
               formal_schedule_hash: formalScheduleHash,
               provenance: {
-                app_version: 'web-static',
+                app_version: EXPERIMENT_VERSION,
                 generator: 'buildFormalSchedule',
                 created_at: new Date().toISOString(),
+                device_info: collectDeviceInfo(),
                 requested_start_group: params.start_group,
                 requested_end_group: params.end_group
               }
@@ -574,7 +590,8 @@ async function startExperiment() {
 
 async function requestFullscreen() {
   const element = document.documentElement
-  if (document.fullscreenElement || !element.requestFullscreen) return false
+  if (document.fullscreenElement) return true
+  if (!element.requestFullscreen) return false
 
   try {
     await element.requestFullscreen()
@@ -582,6 +599,18 @@ async function requestFullscreen() {
   } catch (err) {
     console.warn('Fullscreen request failed:', err)
     return false
+  }
+}
+
+function collectDeviceInfo() {
+  return {
+    fullscreen_active: document.fullscreenElement ? 1 : 0,
+    screen_width_px: window.screen?.width || null,
+    screen_height_px: window.screen?.height || null,
+    viewport_width_px: window.innerWidth || null,
+    viewport_height_px: window.innerHeight || null,
+    device_pixel_ratio: window.devicePixelRatio || null,
+    browser_user_agent: navigator.userAgent || ''
   }
 }
 
@@ -621,7 +650,10 @@ function triggerDownload(jsPsych, abortInfo = null) {
     }
 
     try {
-      const { blob, filename } = await buildAllDataZip(params.participant, allData, summaries, { dateStr })
+      const { blob, filename } = await buildAllDataZip(params.participant, allData, summaries, {
+        dateStr,
+        experimentVersion: EXPERIMENT_VERSION
+      })
       downloadBlob(blob, filename)
       console.log('Data download complete.')
 
@@ -707,7 +739,7 @@ function buildUploadMetadata(params, allData, abortInfo, dateStr, sha256, extraF
     abort_reason: abortInfo?.abort_reason || '',
     sha256,
     created_at: new Date().toISOString(),
-    app_version: 'web-static',
+    app_version: EXPERIMENT_VERSION,
     schedule_source: extraFields.scheduleSource || 'none',
     formal_schedule_hash: extraFields.formalScheduleHash || '',
     completed_blocks: progress.completed_blocks,
