@@ -22,7 +22,7 @@ import { buildPracticeTimeline } from './timeline/practice.js'
 import { buildPretestTimeline } from './timeline/pretest.js'
 import { buildFormalTimeline } from './timeline/formal.js'
 
-const EXPERIMENT_VERSION = 'web-fixedquota-p8-0-16-34-66-84-100-size32-practice-random-pool17600-v6-pretest-resume'
+const EXPERIMENT_VERSION = 'web-fixedquota-p8-0-16-34-66-84-100-size32-practice-random-pool17600-v7-timing'
 window.__EXPERIMENT_VERSION = EXPERIMENT_VERSION
 
 // ---- Calibration v2 helpers ----
@@ -84,6 +84,9 @@ async function startExperiment() {
     return
   }
 
+  // Session time starts after fullscreen has been granted, before any task assets load.
+  const sessionStartedAt = new Date().toISOString()
+  let sessionEndedAt = null
   let downloadTriggered = false
   let runPhase = 'initial'
   let abortTriggered = false
@@ -275,8 +278,12 @@ async function startExperiment() {
   const safeTriggerDownload = () => {
     if (downloadTriggered) return
     downloadTriggered = true
+    sessionEndedAt = sessionEndedAt || abortInfo?.abort_time || new Date().toISOString()
     teardownAbortControls()
-    triggerDownload(jsPsych, abortInfo)
+    triggerDownload(jsPsych, abortInfo, {
+      startedAt: sessionStartedAt,
+      endedAt: sessionEndedAt
+    })
   }
 
   const abortExperiment = (reason) => {
@@ -656,7 +663,7 @@ function showStartupError(err) {
   </div>`
 }
 
-function triggerDownload(jsPsych, abortInfo = null) {
+function triggerDownload(jsPsych, abortInfo = null, sessionTiming = {}) {
   const collector = jsPsych.__dataCollector || {}
   let allData = jsPsych.data.get().filter({}).values()
   if (abortInfo) {
@@ -664,6 +671,8 @@ function triggerDownload(jsPsych, abortInfo = null) {
   }
   const params = readFormParams()
   const dateStr = getDateStr()
+  const timedData = addTimingRecords(allData, params, dateStr, sessionTiming)
+  allData = timedData.rows
 
   setTimeout(async () => {
     const msgEl = document.querySelector('.instruction-text')
@@ -681,7 +690,8 @@ function triggerDownload(jsPsych, abortInfo = null) {
       combinedPretestRecords: collector.pretestRecords || [],
       completedBlocks: progress.completed_blocks,
       partialBlocks: progress.partial_blocks,
-      formalBlockCounts: progress.formal_block_counts
+      formalBlockCounts: progress.formal_block_counts,
+      sessionTiming: timedData.sessionTiming
     }
 
     try {
@@ -701,7 +711,8 @@ function triggerDownload(jsPsych, abortInfo = null) {
           const sha256 = await sha256Blob(blob)
           const metadata = buildUploadMetadata(params, allData, abortInfo, dateStr, sha256, {
             scheduleSource: collector.scheduleSource || 'none',
-            formalScheduleHash: collector.formalScheduleHash || ''
+            formalScheduleHash: collector.formalScheduleHash || '',
+            sessionTiming: timedData.sessionTiming
           })
           const uploadResult = await uploadSessionZip({
             blob,
@@ -757,6 +768,86 @@ function computeFormalProgress(allData, blockSize = 100) {
   }
 }
 
+function addTimingRecords(allData, params, dateStr, timing = {}) {
+  const startedAt = timing.startedAt || null
+  const endedAt = timing.endedAt || null
+  const sessionElapsedMs = elapsedMs(startedAt, endedAt)
+  const sessionTiming = {
+    session_started_at: startedAt,
+    session_ended_at: endedAt,
+    session_elapsed_ms: sessionElapsedMs,
+    session_elapsed_minutes: minutesFromMs(sessionElapsedMs)
+  }
+
+  const rows = allData.map(row => ({ ...row, ...sessionTiming }))
+  const rowsByBlock = new Map()
+  for (const row of rows) {
+    if (row.phase !== 'formal') continue
+    const blockId = parseInt(row.block_id)
+    if (!Number.isInteger(blockId) || blockId < 1 || blockId > 11) continue
+    if (!rowsByBlock.has(blockId)) rowsByBlock.set(blockId, [])
+    rowsByBlock.get(blockId).push(row)
+  }
+
+  for (const [blockId, blockRows] of rowsByBlock.entries()) {
+    const blockStartedAt = earliestTimestamp(blockRows, 'trial_started_at')
+    const blockEndedAt = latestTimestamp(blockRows, 'trial_ended_at')
+    const blockElapsedMs = elapsedMs(blockStartedAt, blockEndedAt)
+    const totalTrials = blockRows.length
+    const validTrials = blockRows.filter(row => parseInt(row.response_timeout) !== 1).length
+    const score = blockRows.filter(row => parseInt(row.manual_accuracy) === 1).length
+
+    rows.push({
+      participant: params.participant,
+      date: dateStr,
+      phase: 'formal_block_timing',
+      block_id: blockId,
+      ...sessionTiming,
+      block_started_at: blockStartedAt,
+      block_ended_at: blockEndedAt,
+      block_elapsed_ms: blockElapsedMs,
+      block_elapsed_minutes: minutesFromMs(blockElapsedMs),
+      formal_block_score: score,
+      formal_block_total_trials: totalTrials,
+      formal_block_valid_trials: validTrials,
+      formal_block_accuracy: totalTrials > 0 ? score / totalTrials : null
+    })
+  }
+
+  rows.push({
+    participant: params.participant,
+    date: dateStr,
+    phase: 'session_timing',
+    ...sessionTiming
+  })
+
+  return { rows, sessionTiming }
+}
+
+function elapsedMs(startedAt, endedAt) {
+  const elapsed = Date.parse(endedAt) - Date.parse(startedAt)
+  return Number.isFinite(elapsed) && elapsed >= 0 ? elapsed : null
+}
+
+function minutesFromMs(value) {
+  return Number.isFinite(value) ? value / 60000 : null
+}
+
+function earliestTimestamp(rows, field) {
+  return rows
+    .map(row => row[field])
+    .filter(value => Number.isFinite(Date.parse(value)))
+    .sort((a, b) => Date.parse(a) - Date.parse(b))[0] || null
+}
+
+function latestTimestamp(rows, field) {
+  const timestamps = rows
+    .map(row => row[field])
+    .filter(value => Number.isFinite(Date.parse(value)))
+    .sort((a, b) => Date.parse(b) - Date.parse(a))
+  return timestamps[0] || null
+}
+
 function buildUploadMetadata(params, allData, abortInfo, dateStr, sha256, extraFields = {}) {
   const trialRows = allData.filter(row => row.phase && row.choice_digit !== undefined)
   const validTrialRows = trialRows.filter(row => parseInt(row.response_timeout) !== 1)
@@ -775,6 +866,9 @@ function buildUploadMetadata(params, allData, abortInfo, dateStr, sha256, extraF
     sha256,
     created_at: new Date().toISOString(),
     app_version: EXPERIMENT_VERSION,
+    session_started_at: extraFields.sessionTiming?.session_started_at || '',
+    session_ended_at: extraFields.sessionTiming?.session_ended_at || '',
+    session_elapsed_ms: extraFields.sessionTiming?.session_elapsed_ms ?? null,
     schedule_source: extraFields.scheduleSource || 'none',
     formal_schedule_hash: extraFields.formalScheduleHash || '',
     completed_blocks: progress.completed_blocks,

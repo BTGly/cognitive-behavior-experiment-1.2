@@ -94,6 +94,9 @@ def init_db() -> None:
               client_user_agent TEXT,
               app_version TEXT,
               created_at TEXT NOT NULL,
+              session_started_at TEXT,
+              session_ended_at TEXT,
+              session_elapsed_ms INTEGER,
               uploaded_at TEXT NOT NULL
             )
             """
@@ -112,10 +115,18 @@ def init_db() -> None:
         )
 
         # Migration: add columns if missing (safe to run repeatedly)
-        for col in ['schedule_source', 'formal_schedule_hash',
-                     'completed_blocks_json', 'partial_blocks_json', 'formal_block_counts_json']:
+        for col, column_type in [
+            ('schedule_source', 'TEXT'),
+            ('formal_schedule_hash', 'TEXT'),
+            ('completed_blocks_json', 'TEXT'),
+            ('partial_blocks_json', 'TEXT'),
+            ('formal_block_counts_json', 'TEXT'),
+            ('session_started_at', 'TEXT'),
+            ('session_ended_at', 'TEXT'),
+            ('session_elapsed_ms', 'INTEGER'),
+        ]:
             try:
-                conn.execute(f'ALTER TABLE experiment_sessions ADD COLUMN {col} TEXT')
+                conn.execute(f'ALTER TABLE experiment_sessions ADD COLUMN {col} {column_type}')
             except sqlite3.OperationalError:
                 pass  # column already exists
 
@@ -517,6 +528,9 @@ async def upload_session(
     app_version = str(meta.get('app_version', '') or '')
     schedule_source = str(meta.get('schedule_source', '') or '')
     formal_schedule_hash = str(meta.get('formal_schedule_hash', '') or '')
+    session_started_at = str(meta.get('session_started_at', '') or '')
+    session_ended_at = str(meta.get('session_ended_at', '') or '')
+    session_elapsed_ms = _parse_int(meta.get('session_elapsed_ms'))
     completed_blocks = json.dumps(meta.get('completed_blocks', []) or [], ensure_ascii=False)
     partial_blocks = json.dumps(meta.get('partial_blocks', []) or [], ensure_ascii=False)
     formal_block_counts = json.dumps(meta.get('formal_block_counts', {}) or {}, ensure_ascii=False)
@@ -578,6 +592,9 @@ async def upload_session(
         'app_version': app_version,
         'schedule_source': schedule_source,
         'formal_schedule_hash': formal_schedule_hash,
+        'session_started_at': session_started_at,
+        'session_ended_at': session_ended_at,
+        'session_elapsed_ms': session_elapsed_ms,
         'completed_blocks': json.loads(completed_blocks) if isinstance(completed_blocks, str) else completed_blocks,
         'partial_blocks': json.loads(partial_blocks) if isinstance(partial_blocks, str) else partial_blocks,
         'formal_block_counts': json.loads(formal_block_counts) if isinstance(formal_block_counts, str) else formal_block_counts,
@@ -602,8 +619,8 @@ async def upload_session(
                   upload_status, client_user_agent, app_version,
                   schedule_source, formal_schedule_hash,
                   completed_blocks_json, partial_blocks_json, formal_block_counts_json,
-                  created_at, uploaded_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  created_at, session_started_at, session_ended_at, session_elapsed_ms, uploaded_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     session_id,
@@ -628,6 +645,9 @@ async def upload_session(
                     partial_blocks,
                     formal_block_counts,
                     created_at,
+                    session_started_at,
+                    session_ended_at,
+                    session_elapsed_ms,
                     uploaded_at,
                 ),
             )

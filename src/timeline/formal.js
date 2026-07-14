@@ -27,10 +27,12 @@ export function buildFormalTimeline(jsPsych, formalBlocks, options = {}) {
     const blockId = activeBlockIds[bi]
     const trials = formalBlocks[blockId]
     const blockNum = parseInt(blockId)
+    const blockTiming = { startedAt: null }
 
     timeline.push(formalBlockIntroTimeline(blockNum, 11, trials.length))
 
-    for (const row of trials) {
+    for (let trialOffset = 0; trialOffset < trials.length; trialOffset++) {
+      const row = trials[trialOffset]
       const rawImagePath = normalizePath(row.image_path)
       const imageAssetPath = assetPath(rawImagePath)
 
@@ -54,7 +56,19 @@ export function buildFormalTimeline(jsPsych, formalBlocks, options = {}) {
         sample_type: normalizeLabelType(row.sample_type || row.label_type, row.label_digit),
         image_path: rawImagePath,
         participant: params.participant,
-        date: dateStr
+        date: dateStr,
+        on_finish: (data) => {
+          if (!blockTiming.startedAt) {
+            blockTiming.startedAt = data.trial_started_at || new Date().toISOString()
+          }
+          data.block_started_at = blockTiming.startedAt
+
+          if (trialOffset === trials.length - 1) {
+            const blockEndedAt = data.trial_ended_at || new Date().toISOString()
+            data.block_ended_at = blockEndedAt
+            data.block_elapsed_ms = elapsedMs(blockTiming.startedAt, blockEndedAt)
+          }
+        }
       })
     }
 
@@ -62,4 +76,9 @@ export function buildFormalTimeline(jsPsych, formalBlocks, options = {}) {
   }
 
   return timeline
+}
+
+function elapsedMs(startedAt, endedAt) {
+  const elapsed = Date.parse(endedAt) - Date.parse(startedAt)
+  return Number.isFinite(elapsed) && elapsed >= 0 ? elapsed : null
 }

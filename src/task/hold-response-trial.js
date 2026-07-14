@@ -50,6 +50,8 @@ class HoldResponseTrialPlugin {
       keyPressed: null,
       keyReleased: false,
       stimulusOnsetTime: 0,
+      trialStartedAt: new Date().toISOString(),
+      stimulusStartedAt: null,
       responseStartTime: 0,
       decisionRt: null,
       holdDuration: null,
@@ -186,6 +188,7 @@ class HoldResponseTrialPlugin {
 
     const stimOnset = performance.now()
     state.stimulusOnsetTime = stimOnset
+    state.stimulusStartedAt = new Date().toISOString()
 
     state.keyPressed = null
     state.keyReleased = false
@@ -270,11 +273,20 @@ class HoldResponseTrialPlugin {
       else confidenceBin = 3
     }
 
+    const trialEndedAt = new Date().toISOString()
+    const trialElapsedMs = Date.parse(trialEndedAt) - Date.parse(state.trialStartedAt)
+
     const trialData = {
       participant: trial.participant,
       date: trial.date,
       phase: trial.phase,
       trial_index: trial.trial_index,
+      trial_started_at: state.trialStartedAt,
+      stimulus_started_at: state.stimulusStartedAt,
+      trial_ended_at: trialEndedAt,
+      trial_elapsed_ms: Number.isFinite(trialElapsedMs) && trialElapsedMs >= 0
+        ? trialElapsedMs
+        : null,
       block_id: trial.block_id,
       trial_in_block: trial.trial_in_block,
       difficulty_id: trial.difficulty_id,

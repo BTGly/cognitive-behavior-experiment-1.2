@@ -73,6 +73,7 @@ export async function buildAllDataZip(subjectId, rawData, summaries, config) {
     completed_blocks: summaries.completedBlocks || [],
     partial_blocks: summaries.partialBlocks || [],
     formal_block_counts: summaries.formalBlockCounts || {},
+    session_timing: summaries.sessionTiming || null,
     pretest_resume: summaries.pretestResume || null,
     generated_at: dateStr
   }
