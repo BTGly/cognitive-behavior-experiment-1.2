@@ -782,14 +782,17 @@ function addTimingRecords(allData, params, dateStr, timing = {}) {
   const rows = allData.map(row => ({ ...row, ...sessionTiming }))
   const rowsByBlock = new Map()
   for (const row of rows) {
-    if (row.phase !== 'formal') continue
+    if (!['practice', 'pretest', 'formal'].includes(row.phase)) continue
     const blockId = parseInt(row.block_id)
-    if (!Number.isInteger(blockId) || blockId < 1 || blockId > 11) continue
-    if (!rowsByBlock.has(blockId)) rowsByBlock.set(blockId, [])
-    rowsByBlock.get(blockId).push(row)
+    if (!Number.isInteger(blockId) || blockId < 0 || blockId > 11) continue
+    const key = `${row.phase}:${blockId}`
+    if (!rowsByBlock.has(key)) {
+      rowsByBlock.set(key, { blockPhase: row.phase, blockId, rows: [] })
+    }
+    rowsByBlock.get(key).rows.push(row)
   }
 
-  for (const [blockId, blockRows] of rowsByBlock.entries()) {
+  for (const { blockPhase, blockId, rows: blockRows } of rowsByBlock.values()) {
     const blockStartedAt = earliestTimestamp(blockRows, 'trial_started_at')
     const blockEndedAt = latestTimestamp(blockRows, 'trial_ended_at')
     const blockElapsedMs = elapsedMs(blockStartedAt, blockEndedAt)
@@ -800,17 +803,24 @@ function addTimingRecords(allData, params, dateStr, timing = {}) {
     rows.push({
       participant: params.participant,
       date: dateStr,
-      phase: 'formal_block_timing',
+      phase: 'block_timing',
       block_id: blockId,
+      block_phase: blockPhase,
       ...sessionTiming,
       block_started_at: blockStartedAt,
       block_ended_at: blockEndedAt,
       block_elapsed_ms: blockElapsedMs,
       block_elapsed_minutes: minutesFromMs(blockElapsedMs),
-      formal_block_score: score,
-      formal_block_total_trials: totalTrials,
-      formal_block_valid_trials: validTrials,
-      formal_block_accuracy: totalTrials > 0 ? score / totalTrials : null
+      block_score: score,
+      block_total_trials: totalTrials,
+      block_valid_trials: validTrials,
+      block_accuracy: totalTrials > 0 ? score / totalTrials : null,
+      ...(blockPhase === 'formal' ? {
+        formal_block_score: score,
+        formal_block_total_trials: totalTrials,
+        formal_block_valid_trials: validTrials,
+        formal_block_accuracy: totalTrials > 0 ? score / totalTrials : null
+      } : {})
     })
   }
 

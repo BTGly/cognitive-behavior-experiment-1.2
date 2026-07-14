@@ -2,6 +2,7 @@ export const RAW_DATA_FIELDS = [
   'participant', 'date', 'phase', 'trial_index', 'block_id', 'trial_in_block',
   'session_started_at', 'session_ended_at', 'session_elapsed_ms', 'session_elapsed_minutes',
   'block_started_at', 'block_ended_at', 'block_elapsed_ms', 'block_elapsed_minutes',
+  'block_phase', 'block_score', 'block_total_trials', 'block_valid_trials', 'block_accuracy',
   'formal_block_score', 'formal_block_total_trials', 'formal_block_valid_trials', 'formal_block_accuracy',
   'trial_started_at', 'stimulus_started_at', 'trial_ended_at', 'trial_elapsed_ms',
   'difficulty_id', 'difficulty_rank', 'alpha', 'label_digit', 'label_type',
